@@ -1,8 +1,4 @@
-# Back-Propagation Neural Networks
-#
-# Written in Python.  See http://www.python.org/
-# Placed in the public domain.
-# Neil Schemenauer <nas@arctrix.com>
+#! /usr/bin/env python
 
 import math
 import random
@@ -48,10 +44,10 @@ class Network:
         # set them to random vaules
         for i in range(self.ni):
             for j in range(self.nh):
-                self.wi[i][j] = rand(-1.0, 1.0)
+                self.wi[i][j] = rand(-0.2, 0.2)
         for j in range(self.nh):
             for k in range(self.no):
-                self.wo[j][k] = rand(-1.0, 1.0)
+                self.wo[j][k] = rand(-2.0, 2.0)
 
         # last change in weights for momentum
         self.ci = makeMatrix(self.ni, self.nh)
@@ -80,7 +76,7 @@ class Network:
                 sum = sum + self.ah[j] * self.wo[j][k]
             self.ao[k] = sigmoid(sum)
 
-        return self.ao[:]
+        return self.ao[:];
 
 
     def backPropagate(self, targets, N, M):
@@ -131,8 +127,7 @@ class Network:
         print('Input weights:')
         for i in range(self.ni):
             print(self.wi[i])
-        print()
-        print('Output weights:')
+        print('\nOutput weights:')
         for j in range(self.nh):
             print(self.wo[j])
 
@@ -160,7 +155,7 @@ def demo():
     ]
 
     # create a network with two input, two hidden, and one output nodes
-    n = NN(2, 2, 1)
+    n = Network(2, 2, 1)
     # train it with some patterns
     n.train(pat)
     # test it
