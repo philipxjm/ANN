@@ -10,13 +10,16 @@ class Receptor:
         self.inputImg = Image.open(inputURL);
         self.inputArr = np.array(self.inputImg);
         self.output = [];
+        self.letter = letter;
         #output is a list of all receptor values
         #to be fed into the neural net
         #x1, x2, x3, x4, x5 = horizontal values
         #x6, x7, x8, x9, x10 = vertical values
         #x11 = horizontal symmetry value
         #x12 = vertical symmetry value
-        print("Original Image: " + str(self.inputArr));
+        np.set_printoptions(linewidth = 1000);
+        self.inputArr.astype(int);
+        print("Original Image: \n" + str(self.inputArr));
         self._createHorizontalValueReceptors();
         self._createVerticalValueReceptors();
         self._createHorizontalSymmetryReceptors();
@@ -37,7 +40,7 @@ class Receptor:
                     self.hParams[y] += 1;
 
         self.output.extend(self.hParams);
-        print("yIndices: " + str(self.yIndices));
+        #print("yIndices: " + str(self.yIndices));
         print("hParams: " + str(self.hParams));
 
     def _createVerticalValueReceptors(self):
@@ -52,7 +55,7 @@ class Receptor:
                     self.vParams[y] += 1;
 
         self.output.extend(self.vParams);
-        print("xIndices: " + str(self.xIndices));
+        #print("xIndices: " + str(self.xIndices));
         print("vParams: " + str(self.vParams));
 
     def _createHorizontalSymmetryReceptors(self):
@@ -75,8 +78,8 @@ class Receptor:
         self.hSym = totalReflectedElements/totalElements;
 
         self.output.append(self.hSym);
-        print("leftOriginal: \n" + str(leftOriginal));
-        print("rightOriginal: \n" + str(rightOriginal));
+        #print("leftOriginal: \n" + str(leftOriginal));
+        #print("rightOriginal: \n" + str(rightOriginal));
         print("hSym: " + str(self.hSym));
 
 
@@ -100,8 +103,8 @@ class Receptor:
         self.vSym = totalReflectedElements/totalElements;
 
         self.output.append(self.vSym);
-        print("topOriginal: \n" + str(topOriginal));
-        print("bottomOriginal: \n" + str(bottomOriginal));
+        #print("topOriginal: \n" + str(topOriginal));
+        #print("bottomOriginal: \n" + str(bottomOriginal));
         print("vSym: " + str(self.vSym));
 
     def _createHadamardTransformReceptors(self):
@@ -109,8 +112,50 @@ class Receptor:
         pass
 
     def _createCavityReceptors(self):
-        #count number of cavities inside character.
-        pass
+        ho, wo = self.inputArr.shape;
+        hn = ho + 2;
+        wn = wo + 2;
+        newArr = np.full([hn, wn], 255);
+
+        for x in range(ho):
+            for y in range(wo):
+                newArr[x + 1,y + 1] = self.inputArr[x,y];
+
+        newArr = newArr.astype(int);
+        #print(newArr);
+
+        cCount = -1;
+        for x in range(hn):
+            for y in range(wn):
+                if(newArr[x, y] == 255):
+                    self._floodFill(x, y, newArr);
+                    cCount += 1;
+
+        #print(newArr);
+        print("cCount: " + str(cCount));
+        self.output.append(cCount);
+
+    def _floodFill(self, x, y, arr):
+        h, w = arr.shape;
+        if(arr[x, y] == 0 and arr[x, y] == 11):
+            return;
+        arr[x, y] = 11;
+
+        if x > 0: # left
+            if arr[x-1, y] == 255:
+                self._floodFill(x-1, y, arr = arr);
+
+        if y > 0: # up
+            if arr[x, y-1] == 255:
+                self._floodFill(x, y-1, arr = arr);
+
+        if x < h-1: # right
+            if arr[x+1, y] == 255:
+                self._floodFill(x+1, y, arr = arr);
+
+        if y < w-1: # down
+            if arr[x, y+1] == 255:
+                self._floodFill(x, y+1, arr = arr);
 
     def _blockshaped(self, arr, nrows, ncols):
         h, w = arr.shape;
@@ -118,7 +163,7 @@ class Receptor:
         return res;
 
 def demo():
-    receptor = Receptor("testdata/1/94.png", letter = "a");
+    receptor = Receptor("testdata/1/34.png", letter = "a");
 
 if __name__ == '__main__':
     demo()
