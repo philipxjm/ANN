@@ -155,7 +155,7 @@ def demo():
     ]
 
     # create a network with two input, two hidden, and one output nodes
-    n = Network(2, 2, 1)
+    n = Network(13, 2, 36)
     # train it with some patterns
     n.train(pat)
     # test it

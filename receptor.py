@@ -3,6 +3,10 @@ import random
 import string
 import numpy as np
 import scipy as sc
+import os
+import csv
+import sys
+import time
 from PIL import Image
 
 class Receptor:
@@ -17,16 +21,18 @@ class Receptor:
         #x6, x7, x8, x9, x10 = vertical values
         #x11 = horizontal symmetry value
         #x12 = vertical symmetry value
+        sys.setrecursionlimit(50000);
         np.set_printoptions(linewidth = 1000);
+        np.set_printoptions(threshold=np.nan)
         self.inputArr.astype(int);
-        print("Original Image: \n" + str(self.inputArr));
+        #print("Original Image: \n" + str(self.inputArr));
         self._createHorizontalValueReceptors();
         self._createVerticalValueReceptors();
         self._createHorizontalSymmetryReceptors();
         self._createVerticalSymmetryReceptors();
         self._createHadamardTransformReceptors();
         self._createCavityReceptors();
-        print("Output Array: " + str(self.output));
+        #print("Letter: " + letter + ", Output Array: " + str(self.output));
 
     def _createHorizontalValueReceptors(self):
         self.hParams = [];
@@ -41,7 +47,7 @@ class Receptor:
 
         self.output.extend(self.hParams);
         #print("yIndices: " + str(self.yIndices));
-        print("hParams: " + str(self.hParams));
+        #print("hParams: " + str(self.hParams));
 
     def _createVerticalValueReceptors(self):
         self.vParams = [];
@@ -56,7 +62,7 @@ class Receptor:
 
         self.output.extend(self.vParams);
         #print("xIndices: " + str(self.xIndices));
-        print("vParams: " + str(self.vParams));
+        #print("vParams: " + str(self.vParams));
 
     def _createHorizontalSymmetryReceptors(self):
         totalElements = self.inputArr.size;
@@ -80,7 +86,7 @@ class Receptor:
         self.output.append(self.hSym);
         #print("leftOriginal: \n" + str(leftOriginal));
         #print("rightOriginal: \n" + str(rightOriginal));
-        print("hSym: " + str(self.hSym));
+        #print("hSym: " + str(self.hSym));
 
 
     def _createVerticalSymmetryReceptors(self):
@@ -90,8 +96,8 @@ class Receptor:
         verticalSplitOriginal = self._blockshaped(self.inputArr, math.floor(self.inputArr.shape[0]/2.0), self.inputArr.shape[1]);
         topOriginal = verticalSplitOriginal[0];
         bottomOriginal = verticalSplitOriginal[1];
-        topFlipped = np.fliplr(topOriginal);
-        bottomFlipped = np.fliplr(bottomOriginal);
+        topFlipped = np.flipud(topOriginal);
+        bottomFlipped = np.flipud(bottomOriginal);
 
         for i in range(int(math.floor(self.inputArr.shape[0]/2.0))):
             for j in range(self.inputArr.shape[1]):
@@ -105,7 +111,7 @@ class Receptor:
         self.output.append(self.vSym);
         #print("topOriginal: \n" + str(topOriginal));
         #print("bottomOriginal: \n" + str(bottomOriginal));
-        print("vSym: " + str(self.vSym));
+        #print("vSym: " + str(self.vSym));
 
     def _createHadamardTransformReceptors(self):
         #array must be square, apply Hadamard transform.
@@ -115,55 +121,70 @@ class Receptor:
         ho, wo = self.inputArr.shape;
         hn = ho + 2;
         wn = wo + 2;
-        newArr = np.full([hn, wn], 255);
+        self.newArr = np.full([hn, wn], 255);
 
         for x in range(ho):
             for y in range(wo):
-                newArr[x + 1,y + 1] = self.inputArr[x,y];
+                self.newArr[x + 1,y + 1] = self.inputArr[x,y];
 
-        newArr = newArr.astype(int);
-        #print(newArr);
+        self.newArr = self.newArr.astype(int);
+        #print(self.newArr);
 
         cCount = -1;
         for x in range(hn):
             for y in range(wn):
-                if(newArr[x, y] == 255):
-                    self._floodFill(x, y, newArr);
+                if(self.newArr[x, y] == 255):
+                    self._floodFill(x, y);
                     cCount += 1;
 
-        #print(newArr);
-        print("cCount: " + str(cCount));
+        #print(self.newArr);
+        #print("cCount: " + str(cCount));
         self.output.append(cCount);
 
-    def _floodFill(self, x, y, arr):
-        h, w = arr.shape;
-        if(arr[x, y] == 0 and arr[x, y] == 11):
+    def _floodFill(self, x, y):
+        h, w = self.newArr.shape;
+        if(self.newArr[x,y] == 255):
+            self.newArr[x, y] = 11;
+
+            if x > 0: # left
+                self._floodFill(x-1, y);
+
+            if y > 0: # up
+                self._floodFill(x, y-1);
+
+            if x < h-1: # right
+                self._floodFill(x+1, y);
+
+            if y < w-1: # down
+                self._floodFill(x, y+1);
+
+        else:
             return;
-        arr[x, y] = 11;
-
-        if x > 0: # left
-            if arr[x-1, y] == 255:
-                self._floodFill(x-1, y, arr = arr);
-
-        if y > 0: # up
-            if arr[x, y-1] == 255:
-                self._floodFill(x, y-1, arr = arr);
-
-        if x < h-1: # right
-            if arr[x+1, y] == 255:
-                self._floodFill(x+1, y, arr = arr);
-
-        if y < w-1: # down
-            if arr[x, y+1] == 255:
-                self._floodFill(x, y+1, arr = arr);
 
     def _blockshaped(self, arr, nrows, ncols):
         h, w = arr.shape;
         res = (arr.reshape(h//nrows, nrows, -1, ncols).swapaxes(1,2).reshape(-1, nrows, ncols));
         return res;
 
+def readFolder(rootDirectory):
+    num = 0;
+    start = time.time();
+    with open('param1.csv', 'wb') as paramfile:
+        csv_writer = csv.writer(paramfile);
+        for subdir, dirs, files in os.walk(rootDirectory):
+            for name in files:
+                receptor = Receptor(subdir + name, letter = name[-5]);
+                values = receptor.output;
+                values[0:0] = name[-5];
+                csv_writer.writerow([x for x in values]);
+                print("fileNumber: " + str(num) + ", letter: " + name[-5]);
+                num += 1;
+    end = time.time();
+    print("\nTime Elapsed: " + str(end - start) + " seconds");
+
 def demo():
-    receptor = Receptor("testdata/1/34.png", letter = "a");
+    receptor = Receptor("testdata/tags/11o.png", "p");
 
 if __name__ == '__main__':
-    demo()
+    #demo();
+    readFolder(rootDirectory = "testdata/tags/");
