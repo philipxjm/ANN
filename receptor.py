@@ -226,5 +226,8 @@ def demo():
     receptor = Receptor("testdata/tags/11o.png", "p");
 
 if __name__ == '__main__':
-    #demo();
-    readFolder(rootDirectory = "testdata/over9000/");
+    import argparse
+    parser = argparse.ArgumentParser(description="Parser to create parameter file from directory of character images");
+    parser.add_argument('-r', type=str, required=True, help="set name of directory to parse");
+    opts = parser.parse_args();
+    readFolder(opts.r);
