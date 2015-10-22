@@ -8,6 +8,7 @@ import csv
 import sys
 import time
 from PIL import Image
+from progressbar import Bar, Percentage, ProgressBar, SimpleProgress
 
 class Receptor:
     def __init__(self, inputURL, letter):
@@ -206,19 +207,22 @@ class Receptor:
         res = (arr.reshape(h//nrows, nrows, -1, ncols).swapaxes(1,2).reshape(-1, nrows, ncols));
         return res;
 
-def readFolder(rootDirectory):
+def readFolder(rootDirectory, filename):
     num = 0;
     start = time.time();
-    with open('param1.csv', 'wb') as paramfile:
+    with open("param1.csv", 'wb') as paramfile:
         csv_writer = csv.writer(paramfile);
         for subdir, dirs, files in os.walk(rootDirectory):
             for name in files:
+                pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(files)).start();
                 receptor = Receptor(subdir + name, letter = name[-5]);
                 values = receptor.output;
                 values[0:0] = name[-5];
                 csv_writer.writerow([x for x in values]);
                 print("fileNumber: " + str(num) + ", letter: " + name[-5]);
                 num += 1;
+                pbar.update(num);
+            pbar.finish();
     end = time.time();
     print("\nTime Elapsed: " + str(end - start) + " seconds");
 
@@ -229,5 +233,6 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description="Parser to create parameter file from directory of character images");
     parser.add_argument('-r', type=str, required=True, help="set name of directory to parse");
+    parser.add_argument('-o', type=str, default="param.csv", help="set prefered names of output csv file, default param.csv");
     opts = parser.parse_args();
-    readFolder(opts.r);
+    readFolder(opts.r, opts.o);

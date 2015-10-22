@@ -7,6 +7,8 @@ import numpy as np
 import csv
 import binascii
 import time
+import sys
+from progressbar import Bar, Percentage, ProgressBar, SimpleProgress
 
 random.seed(0);
 
@@ -129,7 +131,10 @@ class Network:
 
     def recognizeDebug(self, data):
         numCorrect = 0.0;
+        totalNum = 0.0;
         errorList = [];
+        print("Recognition (Debug) Progress:");
+        pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(data)).start();
         for p in data:
             binList = self.update(p[1:]);
             binStr = "";
@@ -138,15 +143,21 @@ class Network:
                     binStr = binStr + str(0);
                 else:
                     binStr = binStr + str(1);
-            #print(binStr);
-            print(str(p[0]) + ' -> ' + self.fromBinaryToCharacter(binStr));
+            # print(binStr);
+            # print(str(p[0]) + ' -> ' + self.fromBinaryToCharacter(binStr));
+
             if(str(p[0]) == self.fromBinaryToCharacter(binStr)):
                 numCorrect += 1;
             else:
                 errorList.append(str(p[0]) + ' -> ' + self.fromBinaryToCharacter(binStr));
+            totalNum += 1;
+            pbar.update(totalNum);
+        pbar.finish();
+
+        print("\n");
+        print("Accuracy: " + str(round((numCorrect/len(data))*100.0, 2)) + "%");
         for l in errorList:
             print("Bad Recognition: " + str(l));
-        print("Accuracy: " + str((numCorrect/len(data))*100.0));
 
     def recognize(self, data):
         for idx, val in data:
@@ -169,12 +180,14 @@ class Network:
             print(self.wo[j]);
 
     def saveWeights(self):
-        if((self.nwi is not None) and (self.nwo is not None)):
-            np.savetxt(self.nwi, self.wi, delimiter=",");
-            np.savetxt(self.nwo, self.wo, delimiter=",");
+        if((self.ww is not None)):
+            np.savetxt(self.ww + "wi.csv", self.wi, delimiter=",");
+            np.savetxt(self.ww + "wo.csv", self.wo, delimiter=",");
+            print("\nSaved weight matrices as: " + self.ww + "wi.csv and " + self.ww + "wo.csv");
         else:
             np.savetxt("wi.csv", self.wi, delimiter=",");
             np.savetxt("wo.csv", self.wo, delimiter=",");
+            print("\nSaved weight matrices as: " + "wi.csv and " + "wo.csv");
         #print(len(self.wi));
         #print(len(self.wo));
 
@@ -184,10 +197,10 @@ class Network:
         #print(len(self.wi));
         #print(len(self.wo));
 
-    def train(self, data, iterations=10, N=0.00001, M=0.001):
+    def train(self, data, iterations=1, N=0.00001, M=0.001):
         # N: learning rate
         # M: momentum factor
-        for i in range(iterations):
+        for i in range(int(iterations)):
             error = 0.0;
             #print(data[1:]);
             inputs = data[1:];
@@ -195,7 +208,8 @@ class Network:
             self.update(inputs);
             error = error + self.backPropagate(targets, N, M);
             if i % 100 == 0:
-                print('error %-.5f' % error);
+                # print('error %-.5f' % error);
+                pass;
 
     def fromCharacterToBinary(self, char):
         binStr = str(bin(int(binascii.hexlify(char), 16)))[2:];
@@ -223,12 +237,10 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description="Neural Network for Optical Character Recognition");
     parser.add_argument('-t', type=str, help="train this network, set name of training csv file");
-    parser.add_argument('-nwi', type=str, default="wi.csv", help="set prefered name of wi output file");
-    parser.add_argument('-nwo', type=str, default="wo.csv", help="set prefered name of wo output file");
+    parser.add_argument('-ww', type=str, default="", help="set prefered names of [ww]w[i,o].csv output files");
+    parser.add_argument('-rw', type=str, default="", help="set the input weights of this network, set names of [rw]w[i,o].csv input file");
     parser.add_argument('-r', type=str, help="use this network for recognition, set name of target csv file");
-    parser.add_argument('-wi', type=str, default="wi.csv", help="set the input weights of this network, set name of wi csv input file");
-    parser.add_argument('-wo', type=str, default="wo.csv", help="set the out weights of this network, set name of wo csv input file");
-    parser.add_argument('-ic', type=float, default=9, help="iteration number, default value 9");
+    parser.add_argument('-ic', type=float, default=1, help="iteration number, default value 1");
     parser.add_argument('-nc', type=float, default=0.00001, help="learning constant, default value 0.00001");
     parser.add_argument('-mc', type=float, default=0.001, help="momentum constant, default value 0.001");
     parser.add_argument('-w', type=bool, default=False, help="whether print weight or not");
@@ -239,20 +251,23 @@ if __name__ == '__main__':
     testingData = None;
 
     if(opts.t is not None):
-        print(opts.t);
+        # print(opts.t);
         trainingData = importCSV(opts.t);
-    if((opts.nwi is not None) and (opts.nwo is not None)):
-        n.nwi = opts.nwi;
-        n.nwo = opts.nwo;
+    if((opts.ww is not None)):
+        n.ww = opts.ww;
     if((opts.r is not None)):
         testingData = importCSV(opts.r);
-    if((opts.wi is not None) and (opts.wo is not None)):
-        n.importWeights(opts.wi, opts.wo);
+    if((opts.rw is not None)):
+        n.importWeights(opts.rw + "wi.csv", opts.rw + "wo.csv");
 
     if((trainingData is not None)):
         start = time.time();
+        print("Training Progress: ");
+        pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(trainingData)).start();
         for x in range(len(trainingData)):
             n.train(trainingData[x], opts.ic, opts.nc, opts.mc);
+            pbar.update(float(x));
+        pbar.finish();
         n.saveWeights();
         end = time.time();
         print("\nTime took to train: " + str(end - start) + " seconds");
