@@ -127,7 +127,7 @@ class Network:
         return error;
 
 
-    def recognize(self, data):
+    def recognizeDebug(self, data):
         numCorrect = 0.0;
         errorList = [];
         for p in data:
@@ -139,14 +139,26 @@ class Network:
                 else:
                     binStr = binStr + str(1);
             #print(binStr);
-            print(str(p[0]) + '->' + self.fromBinaryToCharacter(binStr));
+            print(str(p[0]) + ' -> ' + self.fromBinaryToCharacter(binStr));
             if(str(p[0]) == self.fromBinaryToCharacter(binStr)):
                 numCorrect += 1;
             else:
-                errorList.append(str(p[0]) + '->' + self.fromBinaryToCharacter(binStr));
+                errorList.append(str(p[0]) + ' -> ' + self.fromBinaryToCharacter(binStr));
         for l in errorList:
             print("Bad Recognition: " + str(l));
         print("Accuracy: " + str((numCorrect/len(data))*100.0));
+
+    def recognize(self, data):
+        for idx, val in data:
+            binList = self.update(val);
+            binStr = "";
+            for x in binList:
+                if(x <= 0):
+                    binStr = binStr + str(0);
+                else:
+                    binStr = binStr + str(1);
+            #print(binStr);
+            print("number: " + str(idx) + ' -> ' + self.fromBinaryToCharacter(binStr));
 
     def weights(self):
         print('Input weights:');
@@ -172,7 +184,7 @@ class Network:
         #print(len(self.wi));
         #print(len(self.wo));
 
-    def train(self, data, iterations=100, N=0.00005, M=0.01):
+    def train(self, data, iterations=10, N=0.00001, M=0.001):
         # N: learning rate
         # M: momentum factor
         for i in range(iterations):
@@ -246,7 +258,7 @@ if __name__ == '__main__':
         print("\nTime took to train: " + str(end - start) + " seconds");
     if((testingData is not None)):
         start = time.time();
-        n.recognize(testingData);
+        n.recognizeDebug(testingData);
         end = time.time();
         print("\nTime took to recognize: " + str(end - start) + " seconds");
     #print(trainingData);
