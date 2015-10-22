@@ -164,48 +164,51 @@ class Receptor:
 
     def _cavityFloodFill(self, x, y):
         h, w = self.newArr.shape;
-        if(self.newArr[x,y] == 255):
-            self.newArr[x, y] = 11;
+        toFill = set();
+        toFill.add((x,y));
+        while not toFill:
+            (x,y) = toFill.pop();
+            if(self.newArr[x,y] == 255):
+                self.newArr[x, y] = 11;
 
-            if x > 0: # left
-                self._cavityFloodFill(x-1, y);
+                if x > 0: # left
+                    toFill.add((x-1, y));
 
-            if y > 0: # up
-                self._cavityFloodFill(x, y-1);
+                if y > 0: # up
+                    toFill.add((x, y-1));
 
-            if x < h-1: # right
-                self._cavityFloodFill(x+1, y);
+                if x < h-1: # right
+                    toFill.add((x+1, y));
 
-            if y < w-1: # down
-                self._cavityFloodFill(x, y+1);
-
-        else:
-            return;
+                if y < w-1: # down
+                    toFill.add((x, y+1));
 
     def _blockFloodFill(self, x, y):
-        h, w = self.blockArr.shape;
-        if(self.blockArr[x,y] == 0):
-            self.blockArr[x, y] = 11;
+        h, w = self.newArr.shape;
+        toFill = set();
+        toFill.add((x,y));
+        while not toFill:
+            (x,y) = toFill.pop();
+            if(self.newArr[x,y] == 0):
+                self.newArr[x, y] = 11;
 
-            if x > 0: # left
-                self._blockFloodFill(x-1, y);
+                if x > 0: # left
+                    toFill.add((x-1, y));
 
-            if y > 0: # up
-                self._blockFloodFill(x, y-1);
+                if y > 0: # up
+                    toFill.add((x, y-1));
 
-            if x < h-1: # right
-                self._blockFloodFill(x+1, y);
+                if x < h-1: # right
+                    toFill.add((x+1, y));
 
-            if y < w-1: # down
-                self._blockFloodFill(x, y+1);
-
-        else:
-            return;
+                if y < w-1: # down
+                    toFill.add((x, y+1));
 
     def _blockshaped(self, arr, nrows, ncols):
         h, w = arr.shape;
         res = (arr.reshape(h//nrows, nrows, -1, ncols).swapaxes(1,2).reshape(-1, nrows, ncols));
         return res;
+
 
 def readFolder(rootDirectory, filename):
     num = 0;
@@ -213,13 +216,13 @@ def readFolder(rootDirectory, filename):
     with open("param1.csv", 'wb') as paramfile:
         csv_writer = csv.writer(paramfile);
         for subdir, dirs, files in os.walk(rootDirectory):
+            pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(files)).start();
             for name in files:
-                pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(files)).start();
                 receptor = Receptor(subdir + name, letter = name[-5]);
                 values = receptor.output;
                 values[0:0] = name[-5];
                 csv_writer.writerow([x for x in values]);
-                print("fileNumber: " + str(num) + ", letter: " + name[-5]);
+                # print("fileNumber: " + str(num) + ", letter: " + name[-5]);
                 num += 1;
                 pbar.update(num);
             pbar.finish();
