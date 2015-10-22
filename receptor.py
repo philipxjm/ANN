@@ -32,16 +32,17 @@ class Receptor:
         self._createVerticalSymmetryReceptors();
         self._createHadamardTransformReceptors();
         self._createCavityReceptors();
+        self._createBlockReceptors();
         #print("Letter: " + letter + ", Output Array: " + str(self.output));
 
     def _createHorizontalValueReceptors(self):
         self.hParams = [];
         self.yIndices = [];
-        for x in range(5):
+        for x in range(10):
             self.hParams.append(0);
-            self.yIndices.append(math.ceil(self.inputArr.shape[0]*(-0.1 + (x+1)*0.2)) - 1);
+            self.yIndices.append(math.ceil(self.inputArr.shape[0]*(-0.1 + (x+1)*0.1)) - 1);
         for i in range(self.inputArr.shape[1]):
-            for y in range(5):
+            for y in range(10):
                 if(self.inputArr[self.yIndices[y], i] == 0):
                     self.hParams[y] += 1;
 
@@ -52,11 +53,11 @@ class Receptor:
     def _createVerticalValueReceptors(self):
         self.vParams = [];
         self.xIndices = [];
-        for x in range(5):
+        for x in range(10):
             self.vParams.append(0);
-            self.xIndices.append(math.ceil(self.inputArr.shape[1]*(-0.1 + (x+1)*0.2)) - 1);
+            self.xIndices.append(math.ceil(self.inputArr.shape[1]*(-0.1 + (x+1)*0.1)) - 1);
         for i in range(self.inputArr.shape[0]):
-            for y in range(5):
+            for y in range(10):
                 if(self.inputArr[i, self.xIndices[y]] == 0):
                     self.vParams[y] += 1;
 
@@ -134,29 +135,68 @@ class Receptor:
         for x in range(hn):
             for y in range(wn):
                 if(self.newArr[x, y] == 255):
-                    self._floodFill(x, y);
+                    self._cavityFloodFill(x, y);
                     cCount += 1;
 
         #print(self.newArr);
         #print("cCount: " + str(cCount));
         self.output.append(cCount);
 
-    def _floodFill(self, x, y):
+    def _createBlockReceptors(self):
+        ho, wo = self.inputArr.shape;
+        hn = ho;
+        wn = wo;
+        self.blockArr = self.inputArr;
+        self.blockArr = self.blockArr.astype(int);
+        #print(self.blockArr);
+
+        bCount = 0;
+        for x in range(hn):
+            for y in range(wn):
+                if(self.blockArr[x, y] == 0):
+                    self._blockFloodFill(x, y);
+                    bCount += 1;
+
+        #print(self.blockArr);
+        #print("cCount: " + str(cCount));
+        self.output.append(bCount);
+
+    def _cavityFloodFill(self, x, y):
         h, w = self.newArr.shape;
         if(self.newArr[x,y] == 255):
             self.newArr[x, y] = 11;
 
             if x > 0: # left
-                self._floodFill(x-1, y);
+                self._cavityFloodFill(x-1, y);
 
             if y > 0: # up
-                self._floodFill(x, y-1);
+                self._cavityFloodFill(x, y-1);
 
             if x < h-1: # right
-                self._floodFill(x+1, y);
+                self._cavityFloodFill(x+1, y);
 
             if y < w-1: # down
-                self._floodFill(x, y+1);
+                self._cavityFloodFill(x, y+1);
+
+        else:
+            return;
+
+    def _blockFloodFill(self, x, y):
+        h, w = self.blockArr.shape;
+        if(self.blockArr[x,y] == 0):
+            self.blockArr[x, y] = 11;
+
+            if x > 0: # left
+                self._blockFloodFill(x-1, y);
+
+            if y > 0: # up
+                self._blockFloodFill(x, y-1);
+
+            if x < h-1: # right
+                self._blockFloodFill(x+1, y);
+
+            if y < w-1: # down
+                self._blockFloodFill(x, y+1);
 
         else:
             return;
@@ -187,4 +227,4 @@ def demo():
 
 if __name__ == '__main__':
     #demo();
-    readFolder(rootDirectory = "testdata/tags/");
+    readFolder(rootDirectory = "testdata/over9000/");
