@@ -237,6 +237,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Parser to create parameter file from directory of character images");
     parser.add_argument('-r', type=str, required=True, help="set name of directory to parse");
     parser.add_argument('-o', type=str, default="param.csv", help="set prefered names of output csv file, default param.csv");
-    parser.add_argument('-mt', type=bool, default=True, help="Multi-processing")
+    parser.add_argument('-mt', type=bool, default=True, help="Multi-processing, default true");
     opts = parser.parse_args();
     readFolder(opts.r, opts.o);
