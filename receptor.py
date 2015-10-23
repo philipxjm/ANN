@@ -22,16 +22,15 @@ class Receptor:
         #x6, x7, x8, x9, x10 = vertical values
         #x11 = horizontal symmetry value
         #x12 = vertical symmetry value
-        sys.setrecursionlimit(50000);
         np.set_printoptions(linewidth = 1000);
-        np.set_printoptions(threshold=np.nan)
+        np.set_printoptions(threshold=np.nan);
         self.inputArr.astype(int);
         #print("Original Image: \n" + str(self.inputArr));
         self._createHorizontalValueReceptors();
         self._createVerticalValueReceptors();
         self._createHorizontalSymmetryReceptors();
         self._createVerticalSymmetryReceptors();
-        self._createHadamardTransformReceptors();
+        # self._createHadamardTransformReceptors();
         self._createCavityReceptors();
         self._createBlockReceptors();
         #print("Letter: " + letter + ", Output Array: " + str(self.output));
@@ -213,7 +212,7 @@ class Receptor:
 def readFolder(rootDirectory, filename):
     num = 0;
     start = time.time();
-    with open("param1.csv", 'wb') as paramfile:
+    with open(filename, 'wb') as paramfile:
         csv_writer = csv.writer(paramfile);
         for subdir, dirs, files in os.walk(rootDirectory):
             pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(files)).start();
@@ -227,7 +226,8 @@ def readFolder(rootDirectory, filename):
                 pbar.update(num);
             pbar.finish();
     end = time.time();
-    print("\nTime Elapsed: " + str(end - start) + " seconds");
+    print("\nSaved data as: " + filename + ".csv");
+    print("Time Elapsed: " + str(end - start) + " seconds");
 
 def demo():
     receptor = Receptor("testdata/tags/11o.png", "p");
