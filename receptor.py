@@ -33,6 +33,7 @@ class Receptor:
         # self._createHadamardTransformReceptors();
         self._createCavityReceptors();
         self._createBlockReceptors();
+        #self._createSumReceptors();
         #print("Letter: " + letter + ", Output Array: " + str(self.output));
 
     def _createHorizontalValueReceptors(self):
@@ -118,6 +119,12 @@ class Receptor:
         #array must be square, apply Hadamard transform.
         pass
 
+    def _createSumReceptors(self):
+        n = 0.0;
+        for x in range(0, len(self.output)):
+            n += self.output[x];
+        self.output.append(n/1000.0);
+
     def _createCavityReceptors(self):
         ho, wo = self.inputArr.shape;
         hn = ho + 2;
@@ -137,7 +144,6 @@ class Receptor:
                 if(self.newArr[x, y] == 255):
                     self._cavityFloodFill(x, y);
                     cCount += 1;
-
         #print(self.newArr);
         #print("cCount: " + str(cCount));
         self.output.append(cCount);
@@ -165,10 +171,10 @@ class Receptor:
         h, w = self.newArr.shape;
         toFill = set();
         toFill.add((x,y));
-        while not toFill:
+        while toFill:
             (x,y) = toFill.pop();
             if(self.newArr[x,y] == 255):
-                self.newArr[x, y] = 11;
+                self.newArr[x,y] = 11;
 
                 if x > 0: # left
                     toFill.add((x-1, y));
@@ -183,13 +189,13 @@ class Receptor:
                     toFill.add((x, y+1));
 
     def _blockFloodFill(self, x, y):
-        h, w = self.newArr.shape;
+        h, w = self.blockArr.shape;
         toFill = set();
         toFill.add((x,y));
-        while not toFill:
+        while toFill:
             (x,y) = toFill.pop();
-            if(self.newArr[x,y] == 0):
-                self.newArr[x, y] = 11;
+            if(self.blockArr[x,y] == 0):
+                self.blockArr[x, y] = 11;
 
                 if x > 0: # left
                     toFill.add((x-1, y));
@@ -209,7 +215,7 @@ class Receptor:
         return res;
 
 
-def readFolder(rootDirectory, filename):
+def readFolderWithName(rootDirectory, filename):
     num = 0;
     start = time.time();
     with open(filename, 'wb') as paramfile:
@@ -226,11 +232,35 @@ def readFolder(rootDirectory, filename):
                 pbar.update(num);
             pbar.finish();
     end = time.time();
-    print("\nSaved data as: " + filename + ".csv");
+    print("\nSaved data as: " + filename);
     print("Time Elapsed: " + str(end - start) + " seconds");
 
-def demo():
-    receptor = Receptor("testdata/tags/11o.png", "p");
+def readFolderWithJSON(rootDirectory, filename, JSONname):
+    import json;
+    num = 0;
+    start = time.time();
+    with open(JSONname) as f:
+        data = json.load(f);
+        with open(filename, 'wb') as paramfile:
+            csv_writer = csv.writer(paramfile);
+            for subdir, dirs, files in os.walk(rootDirectory):
+                pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(files)).start();
+                for name in files:
+                    #print str(json.dumps(data["data"][int(name[:-4]) - 1])[1]);
+                    receptor = Receptor(subdir + name, letter = str(json.dumps(data["data"][int(name[:-4])])[1]));
+                    values = receptor.output;
+                    values[0:0] = str(json.dumps(data["data"][int(name[:-4])])[1]);
+                    # print values;
+                    csv_writer.writerow([x for x in values]);
+                    # print("fileNumber: " + str(num) + ", letter: " + name[-5]);
+                    num += 1;
+                    pbar.update(num);
+                pbar.finish();
+
+    end = time.time();
+    print("\nSaved data as: " + filename);
+    print("Time Elapsed: " + str(end - start) + " seconds");
+
 
 if __name__ == '__main__':
     import argparse
@@ -238,5 +268,9 @@ if __name__ == '__main__':
     parser.add_argument('-r', type=str, required=True, help="set name of directory to parse");
     parser.add_argument('-o', type=str, default="param.csv", help="set prefered names of output csv file, default param.csv");
     parser.add_argument('-mt', type=bool, default=True, help="Multi-processing, default true");
+    parser.add_argument('-json', type=str, help="set JSON file name of letters, if none then assumed to be non-JSON");
     opts = parser.parse_args();
-    readFolder(opts.r, opts.o);
+    if(opts.json):
+        readFolderWithJSON(opts.r, opts.o, opts.json);
+    else:
+        readFolderWithName(opts.r, opts.o);

@@ -143,7 +143,7 @@ class Network:
                     binStr = binStr + str(0);
                 else:
                     binStr = binStr + str(1);
-            # print(binStr);
+
             # print(str(p[0]) + ' -> ' + self.fromBinaryToCharacter(binStr));
 
             if(str(p[0]) == self.fromBinaryToCharacter(binStr)):
@@ -197,19 +197,15 @@ class Network:
         #print(len(self.wi));
         #print(len(self.wo));
 
-    def train(self, data, iterations=1, N=0.00001, M=0.001):
+    def train(self, data, N=0.00001, M=0.001):
         # N: learning rate
         # M: momentum factor
-        for i in range(int(iterations)):
-            error = 0.0;
-            #print(data[1:]);
-            inputs = data[1:];
-            targets = self.fromCharacterToBinary(data[0]);
-            self.update(inputs);
-            error = error + self.backPropagate(targets, N, M);
-            if i % 100 == 0:
-                # print('error %-.5f' % error);
-                pass;
+        error = 0.0;
+        #print(data[1:]);
+        inputs = data[1:];
+        targets = self.fromCharacterToBinary(data[0]);
+        self.update(inputs);
+        error = error + self.backPropagate(targets, N, M);
 
     def fromCharacterToBinary(self, char):
         binStr = str(bin(int(binascii.hexlify(char), 16)))[2:];
@@ -221,10 +217,15 @@ class Network:
     def fromBinaryToCharacter(self, binStr):
         st = "0" + binStr;
         #print st;
-        n = int("0b" + st, 2);
-        #print(n);
-        #print(binStr);
-        character = binascii.unhexlify('%x' % n);
+        n = int("0b" + st.strip(), 2);
+        #print n;
+        #print(hex(n).split('x')[1]);
+        if len(str(hex(n).split('x')[1])) == 0:
+            character = binascii.unhexlify("00");
+        elif len(str(hex(n).split('x')[1])) == 1:
+            character = binascii.unhexlify("0" + (hex(n).split('x')[1]));
+        else:
+            character = binascii.unhexlify((hex(n).split('x')[1]).strip());
         return character;
 
 def importCSV(csvURL):
@@ -233,17 +234,26 @@ def importCSV(csvURL):
         trainingData = list(reader);
         return trainingData;
 
+def up():
+    sys.stdout.write('\x1b[1A')
+    sys.stdout.flush()
+
+def down():
+    sys.stdout.write('\n')
+    sys.stdout.flush()
+
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description="Neural Network for Optical Character Recognition");
     parser.add_argument('-t', type=str, help="train this network, set name of training csv file");
     parser.add_argument('-ww', type=str, default="", help="set prefered names of [ww]w[i,o].csv output files");
-    parser.add_argument('-rw', type=str, default="", help="set the input weights of this network, set names of [rw]w[i,o].csv input file");
+    parser.add_argument('-rw', type=str, help="set the input weights of this network, set names of [rw]w[i,o].csv input file");
     parser.add_argument('-r', type=str, help="use this network for recognition, set name of target csv file");
     parser.add_argument('-ic', type=float, default=1, help="iteration number, default value 1");
     parser.add_argument('-nc', type=float, default=0.00001, help="learning constant, default value 0.00001");
     parser.add_argument('-mc', type=float, default=0.001, help="momentum constant, default value 0.001");
     parser.add_argument('-w', type=bool, default=False, help="whether print weight or not");
+    parser.add_argument('-e', type=bool, default=False, help="");
     opts = parser.parse_args();
 
     n = Network(24, 150, 7);
@@ -263,11 +273,18 @@ if __name__ == '__main__':
     if((trainingData is not None)):
         start = time.time();
         print("Training Progress: ");
-        pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(trainingData)).start();
-        for x in range(len(trainingData)):
-            n.train(trainingData[x], opts.ic, opts.nc, opts.mc);
-            pbar.update(float(x));
-        pbar.finish();
+        down();
+        pbar2 = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=int(opts.ic)).start();
+        for i in range(int(opts.ic)):
+            up();
+            pbar1 = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(trainingData)).start();
+            for x in range(len(trainingData)):
+                n.train(trainingData[x], opts.nc, opts.mc);
+                pbar1.update(float(x));
+            pbar1.finish();
+            pbar2.update(float(i));
+            # print('error %-.5f' % error);
+        pbar2.finish();
         n.saveWeights();
         end = time.time();
         print("\nTime took to train: " + str(end - start) + " seconds");
