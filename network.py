@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 
+import os
 import math
 import random
 import string
@@ -181,13 +182,20 @@ class Network:
 
     def saveWeights(self):
         if((self.ww is not None)):
-            np.savetxt(self.ww + "wi.csv", self.wi, delimiter=",");
-            np.savetxt(self.ww + "wo.csv", self.wo, delimiter=",");
-            print("\nSaved weight matrices as: " + self.ww + "wi.csv and " + self.ww + "wo.csv");
+            newpath = "weights/" + self.ww;
+            if not os.path.exists(newpath):
+                print newpath
+                os.makedirs(newpath);
+            np.savetxt("weights/" + self.ww + "/wi.csv", self.wi, delimiter=",");
+            np.savetxt("weights/" + self.ww + "/wo.csv", self.wo, delimiter=",");
+            print("\nSaved weight matrices in: " + "weights/" + self.ww + "/");
         else:
-            np.savetxt("wi.csv", self.wi, delimiter=",");
-            np.savetxt("wo.csv", self.wo, delimiter=",");
-            print("\nSaved weight matrices as: " + "wi.csv and " + "wo.csv");
+            newpath = "weights/defaultweights";
+            if not os.path.exists(newpath):
+                os.makedirs(newpath);
+            np.savetxt("weights/defaultweights/wi.csv", self.wi, delimiter=",");
+            np.savetxt("weights/defaultweights/wo.csv", self.wo, delimiter=",");
+            print("\nSaved weight matrices in: " + "weights/defaultweights/");
         #print(len(self.wi));
         #print(len(self.wo));
 
@@ -246,8 +254,8 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description="Neural Network for Optical Character Recognition");
     parser.add_argument('-t', type=str, help="train this network, set name of training csv file");
-    parser.add_argument('-ww', type=str, default="", help="set prefered names of [ww]w[i,o].csv output files");
-    parser.add_argument('-rw', type=str, help="set the input weights of this network, set names of [rw]w[i,o].csv input file");
+    parser.add_argument('-ww', type=str, help="set prefered names of directory to save weights");
+    parser.add_argument('-rw', type=str, help="set the input weights of this network, set name of directory to read weights");
     parser.add_argument('-r', type=str, help="use this network for recognition, set name of target csv file");
     parser.add_argument('-ic', type=float, default=1, help="iteration number, default value 1");
     parser.add_argument('-nc', type=float, default=0.00001, help="learning constant, default value 0.00001");
@@ -262,13 +270,15 @@ if __name__ == '__main__':
 
     if(opts.t is not None):
         # print(opts.t);
-        trainingData = importCSV(opts.t);
+        trainingData = importCSV("encodedcsv/" + opts.t);
     if((opts.ww is not None)):
         n.ww = opts.ww;
+    else:
+        n.ww = None;
     if((opts.r is not None)):
-        testingData = importCSV(opts.r);
+        testingData = importCSV("encodedcsv/" + opts.r);
     if((opts.rw is not None)):
-        n.importWeights(opts.rw + "wi.csv", opts.rw + "wo.csv");
+        n.importWeights("weights/" + opts.rw + "/wi.csv", "weights/" + opts.rw + "/wo.csv");
 
     if((trainingData is not None)):
         start = time.time();
