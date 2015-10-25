@@ -160,17 +160,33 @@ class Network:
         for l in errorList:
             print("Bad Recognition: " + str(l));
 
-    def recognize(self, data):
-        for idx, val in data:
-            binList = self.update(val);
+    def recognize(self, data, filename):
+        totalNum = 0;
+        outlist = [];
+        print("Recognition Progress:");
+        pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(data)).start();
+        for p in data:
+            binList = self.update(p[1:]);
             binStr = "";
             for x in binList:
                 if(x <= 0):
                     binStr = binStr + str(0);
                 else:
                     binStr = binStr + str(1);
-            #print(binStr);
-            print("number: " + str(idx) + ' -> ' + self.fromBinaryToCharacter(binStr));
+            # print(binStr);
+            # print("number: " + str(idx) + ' -> ' + self.fromBinaryToCharacter(binStr));
+            outlist.append(self.fromBinaryToCharacter(binStr));
+            totalNum += 1;
+            pbar.update(totalNum);
+        out = "".join(outlist);
+        if not os.path.exists("out"):
+            os.makedirs("out");
+        text_file = open("out/" + filename, "w");
+        text_file.write(out);
+        text_file.close();
+        pbar.finish();
+        print("Wrote recognized text to: " + "out/" + filename);
+
 
     def weights(self):
         print('Input weights:');
@@ -184,7 +200,7 @@ class Network:
         if((self.ww is not None)):
             newpath = "weights/" + self.ww;
             if not os.path.exists(newpath):
-                print newpath
+                # print newpath
                 os.makedirs(newpath);
             np.savetxt("weights/" + self.ww + "/wi.csv", self.wi, delimiter=",");
             np.savetxt("weights/" + self.ww + "/wo.csv", self.wo, delimiter=",");
@@ -261,7 +277,9 @@ if __name__ == '__main__':
     parser.add_argument('-nc', type=float, default=0.00001, help="learning constant, default value 0.00001");
     parser.add_argument('-mc', type=float, default=0.001, help="momentum constant, default value 0.001");
     parser.add_argument('-w', type=bool, default=False, help="whether print weight or not");
-    parser.add_argument('-e', type=bool, default=False, help="");
+    # parser.add_argument('-e', type=bool, default=False, help="whether print error or not");
+    parser.add_argument('-d', action="store_true", default=False, help="whether to recognize using debug algorithm or not");
+    parser.add_argument('-o', type=str, default="default.txt", help="set name of output file");
     opts = parser.parse_args();
 
     n = Network(24, 150, 7);
@@ -300,7 +318,10 @@ if __name__ == '__main__':
         print("\nTime took to train: " + str(end - start) + " seconds");
     if((testingData is not None)):
         start = time.time();
-        n.recognizeDebug(testingData);
+        if opts.d:
+            n.recognizeDebug(testingData);
+        else:
+            n.recognize(testingData, opts.o);
         end = time.time();
         print("\nTime took to recognize: " + str(end - start) + " seconds");
     #print(trainingData);
