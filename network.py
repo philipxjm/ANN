@@ -1,5 +1,9 @@
 #! /usr/bin/env python
 
+# neural network with flexible node configurations
+# optimized for optical character recognition
+# author: Philip Xu
+
 import os
 import math
 import random
@@ -17,18 +21,18 @@ random.seed(0);
 def rand(a, b):
     return (b-a) * random.random() + a;
 
-# Make a matrix (we could use NumPy to speed this up)
+# Make a matrix
 def makeMatrix(I, J, fill=0.0):
     m = [];
     for i in range(I):
         m.append([fill]*J);
     return m;
 
-# our sigmoid function, tanh is a little nicer than the standard 1/(1+e^-x)
+# sigmoid function, uses tanh
 def sigmoid(x):
     return math.tanh(x);
 
-# derivative of our sigmoid function, in terms of the output (i.e. y)
+# derivative of sigmoid function, in terms of the output (i.e. y)
 def dsigmoid(y):
     return 1.0 - y**2;
 
@@ -59,6 +63,7 @@ class Network:
         self.ci = makeMatrix(self.ni, self.nh);
         self.co = makeMatrix(self.nh, self.no);
 
+    # feed forward data
     def update(self, inputs):
         if len(inputs) != self.ni-1:
             raise ValueError('wrong number of inputs');
@@ -86,7 +91,7 @@ class Network:
 
         return self.ao[:];
 
-
+    # backpropagate errors
     def backPropagate(self, tar, N, M):
         targets = [];
         for t in tar:
@@ -129,11 +134,14 @@ class Network:
             error = error + 0.5*(float(targets[k])-self.ao[k])**2;
         return error;
 
-
+    # recognition sequence but with error display
     def recognizeDebug(self, data):
+        # set vars for error calculations
         numCorrect = 0.0;
         totalNum = 0.0;
         errorList = [];
+
+        # recognition process
         print("Recognition (Debug) Progress:");
         pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(data)).start();
         for p in data:
@@ -155,14 +163,21 @@ class Network:
             pbar.update(totalNum);
         pbar.finish();
 
-        print("\n");
-        print("Accuracy: " + str(round((numCorrect/len(data))*100.0, 2)) + "%");
+        # print all errors made
         for l in errorList:
             print("Bad Recognition: " + str(l));
 
+        # print results
+        print("\n");
+        print("Accuracy: " + str(round((numCorrect/len(data))*100.0, 2)) + "%");
+
+    # recognition sequence
     def recognize(self, data, filename):
+        # set vars for error calculations
         totalNum = 0;
         outlist = [];
+
+        # recognition process
         print("Recognition Progress:");
         pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(data)).start();
         for p in data:
@@ -178,6 +193,8 @@ class Network:
             outlist.append(self.fromBinaryToCharacter(binStr));
             totalNum += 1;
             pbar.update(totalNum);
+
+        # saving recognized string as textfile
         out = "".join(outlist);
         if not os.path.exists("out"):
             os.makedirs("out");
@@ -187,24 +204,25 @@ class Network:
         pbar.finish();
         print("Wrote recognized text to: " + "out/" + filename);
 
-
+    # print weights matrices
     def weights(self):
         print('Input weights:');
-        for i in range(self.ni):
-            print(self.wi[i]);
+        print(self.wi);
         print('\nOutput weights:');
-        for j in range(self.nh):
-            print(self.wo[j]);
+        print(self.wo);
 
+    # save weight matrices as csv
     def saveWeights(self):
+        # save matrices to specified location
         if((self.ww is not None)):
             newpath = "weights/" + self.ww;
             if not os.path.exists(newpath):
-                # print newpath
                 os.makedirs(newpath);
             np.savetxt("weights/" + self.ww + "/wi.csv", self.wi, delimiter=",");
             np.savetxt("weights/" + self.ww + "/wo.csv", self.wo, delimiter=",");
             print("\nSaved weight matrices in: " + "weights/" + self.ww + "/");
+
+        # save matrices to default folder
         else:
             newpath = "weights/defaultweights";
             if not os.path.exists(newpath):
@@ -212,38 +230,45 @@ class Network:
             np.savetxt("weights/defaultweights/wi.csv", self.wi, delimiter=",");
             np.savetxt("weights/defaultweights/wo.csv", self.wo, delimiter=",");
             print("\nSaved weight matrices in: " + "weights/defaultweights/");
-        #print(len(self.wi));
-        #print(len(self.wo));
 
+    # read weight csv into matrices
     def importWeights(self, wiURL, woURL):
         self.wi = np.loadtxt(open(wiURL,"rb"),delimiter=",");
         self.wo = np.loadtxt(open(woURL,"rb"),delimiter=",");
-        #print(len(self.wi));
-        #print(len(self.wo));
 
+    # training sequence
     def train(self, data, N=0.00001, M=0.001):
         # N: learning rate
         # M: momentum factor
         error = 0.0;
-        #print(data[1:]);
         inputs = data[1:];
+
+        # target output node activations
         targets = self.fromCharacterToBinary(data[0]);
+
+        # feedforward inputs
         self.update(inputs);
+
+        # backpropagate errors
         error = error + self.backPropagate(targets, N, M);
 
+    # take character string and convert to binary string
     def fromCharacterToBinary(self, char):
         binStr = str(bin(int(binascii.hexlify(char), 16)))[2:];
+
+        # making sure binStr is 7 digits long
         while(len(binStr) != 7):
             binStr = str(0) + binStr;
-        #print(binStr);
         return binStr;
 
+    # takes binary string and convert to ascii characters
     def fromBinaryToCharacter(self, binStr):
+
+        # making sure binStr is 8 digits long
         st = "0" + binStr;
-        #print st;
+
+        # converting binStr to ascii char
         n = int("0b" + st.strip(), 2);
-        #print n;
-        #print(hex(n).split('x')[1]);
         if len(str(hex(n).split('x')[1])) == 0:
             character = binascii.unhexlify("00");
         elif len(str(hex(n).split('x')[1])) == 1:
@@ -252,21 +277,25 @@ class Network:
             character = binascii.unhexlify((hex(n).split('x')[1]).strip());
         return character;
 
+# imports csv as list
 def importCSV(csvURL):
     with open(csvURL, 'rb') as f:
         reader = csv.reader(f);
         trainingData = list(reader);
         return trainingData;
 
+# move console cursor up
 def up():
     sys.stdout.write('\x1b[1A')
     sys.stdout.flush()
 
+# move console cursor down
 def down():
     sys.stdout.write('\n')
     sys.stdout.flush()
 
 if __name__ == '__main__':
+    # adding arguments
     import argparse
     parser = argparse.ArgumentParser(description="Neural Network for Optical Character Recognition");
     parser.add_argument('-t', type=str, help="train this network, set name of training csv file");
@@ -276,18 +305,19 @@ if __name__ == '__main__':
     parser.add_argument('-ic', type=float, default=1, help="iteration number, default value 1");
     parser.add_argument('-nc', type=float, default=0.00001, help="learning constant, default value 0.00001");
     parser.add_argument('-mc', type=float, default=0.001, help="momentum constant, default value 0.001");
-    parser.add_argument('-w', type=bool, default=False, help="whether print weight or not");
-    # parser.add_argument('-e', type=bool, default=False, help="whether print error or not");
     parser.add_argument('-d', action="store_true", default=False, help="whether to recognize using debug algorithm or not");
     parser.add_argument('-o', type=str, default="default.txt", help="set name of output file");
     opts = parser.parse_args();
 
-    n = Network(24, 150, 7);
+    # creating a network with input, hidden, and output nodes
+    n = Network(26, 150, 7);
+
+    # setting data vars
     trainingData = None;
     testingData = None;
 
+    # setting vars according to args
     if(opts.t is not None):
-        # print(opts.t);
         trainingData = importCSV("encodedcsv/" + opts.t);
     if((opts.ww is not None)):
         n.ww = opts.ww;
@@ -298,6 +328,7 @@ if __name__ == '__main__':
     if((opts.rw is not None)):
         n.importWeights("weights/" + opts.rw + "/wi.csv", "weights/" + opts.rw + "/wo.csv");
 
+    # train
     if((trainingData is not None)):
         start = time.time();
         print("Training Progress: ");
@@ -316,6 +347,8 @@ if __name__ == '__main__':
         n.saveWeights();
         end = time.time();
         print("\nTime took to train: " + str(end - start) + " seconds");
+
+    # test
     if((testingData is not None)):
         start = time.time();
         if opts.d:
@@ -324,19 +357,3 @@ if __name__ == '__main__':
             n.recognize(testingData, opts.o);
         end = time.time();
         print("\nTime took to recognize: " + str(end - start) + " seconds");
-    #print(trainingData);
-    if(opts.w):
-        n.weights();
-
-
-
-
-
-
-
-
-
-
-
-
-

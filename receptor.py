@@ -1,3 +1,8 @@
+#! /usr/bin/env python
+
+# a tool that creates a .csv file of processed parameters of character images from a directory
+# author: Philip Xu
+
 import math
 import random
 import string
@@ -14,42 +19,48 @@ from multiprocessing import Pool, cpu_count
 from progressbar import Bar, Percentage, ProgressBar, SimpleProgress
 
 class Receptor:
+    # constructs a receptor opject from a image file
     def __init__(self, inputURL, letter):
         self.inputArr = np.array(Image.open(inputURL));
-
-        self.output = [];
+        self.inputArr.astype(int);
+        self.letter = letter;
         # output is a list of all receptor values
         # to be fed into the neural net
-        # x1, x2, x3, x4, x5 = horizontal values
-        # x6, x7, x8, x9, x10 = vertical values
-        # x11 = horizontal symmetry value
-        # x12 = vertical symmetry value
+        # x1 - x11 = horizontal values
+        # x12 - x22 = vertical values
+        # x23 = horizontal symmetry value
+        # x24 = vertical symmetry value
+        # x25 = cavity count
+        # x26 = block count
+        self.output = [];
 
-        self.letter = letter;
+        # set array print options to more readable
         # np.set_printoptions(linewidth = 1000);
         # np.set_printoptions(threshold=np.nan);
-        self.inputArr.astype(int);
         # print("Original Image: \n" + str(self.inputArr));
 
+        # fills output list with receptors param values
         self._createHorizontalValueReceptors();
         self._createVerticalValueReceptors();
         self._createHorizontalSymmetryReceptors();
         self._createVerticalSymmetryReceptors();
-        # self._createHadamardTransformReceptors();
         self._createCavityReceptors();
         self._createBlockReceptors();
-        #self._createSumReceptors();
+        # self._createHadamardTransformReceptors();
+        # self._createSumReceptors();
 
-        #print("Letter: " + letter + ", Output Array: " + str(self.output));
+        # this prints the output list for debug
+        # print("Letter: " + letter + ", Output Array: " + str(self.output));
 
+    # creates 11 horizontal value parameters, at 0%, 10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90%, 100% width
     def _createHorizontalValueReceptors(self):
         self.hParams = [];
         self.yIndices = [];
-        for x in range(10):
+        for x in range(11):
             self.hParams.append(0);
-            self.yIndices.append(math.ceil(self.inputArr.shape[0]*(-0.1 + (x+1)*0.1)) - 1);
+            self.yIndices.append(math.ceil(self.inputArr.shape[0]*(x*0.1)) - 1);
         for i in range(self.inputArr.shape[1]):
-            for y in range(10):
+            for y in range(11):
                 if(self.inputArr[self.yIndices[y], i] == 0):
                     self.hParams[y] += 1;
 
@@ -57,14 +68,15 @@ class Receptor:
         #print("yIndices: " + str(self.yIndices));
         #print("hParams: " + str(self.hParams));
 
+    # creates 11 vertical value parameters, at 0%, 10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90%, 100% height
     def _createVerticalValueReceptors(self):
         self.vParams = [];
         self.xIndices = [];
-        for x in range(10):
+        for x in range(11):
             self.vParams.append(0);
-            self.xIndices.append(math.ceil(self.inputArr.shape[1]*(-0.1 + (x+1)*0.1)) - 1);
+            self.xIndices.append(math.ceil(self.inputArr.shape[1]*(x*0.1)) - 1);
         for i in range(self.inputArr.shape[0]):
-            for y in range(10):
+            for y in range(11):
                 if(self.inputArr[i, self.xIndices[y]] == 0):
                     self.vParams[y] += 1;
 
@@ -226,7 +238,7 @@ def readFolderWithName(rootDirectory, filename, multiProcessing):
     start = time.time();
     with open("encodedcsv/" + filename, 'wb') as paramfile:
         csv_writer = csv.writer(paramfile);
-        for subdir, dirs, files in os.walk(rootDirectory):
+        for subdir, dirs, files in os.walk("data/" + rootDirectory + "/"):
             pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(files)).start();
             for name in files:
                 receptor = Receptor(subdir + name, letter = name[-5]);
@@ -255,13 +267,17 @@ def readFolderWithJSON(rootDirectory, filename, JSONname, multiProcessing):
             print('Error getting core counts, setting threadcount to 2');
         threads = Pool(threadcount);
 
+        print("Creating task list...");
         with open(JSONname) as f:
             data = json.load(f);
-            for subdir, dirs, files in os.walk(rootDirectory):
+            for subdir, dirs, files in os.walk("data/" + rootDirectory + "/"):
                 for name in files:
                     imgs.append([name, subdir, str(json.dumps(data["data"][int(name[:-4])])[1])]);
+
+        print("Distributing tasks across " + str(threadcount) + " cores...");
         final = threads.map(partial(mp), imgs);
 
+        print("Writing results to output file...")
         with open("encodedcsv/" + filename, 'wb') as paramfile:
             csv_writer = csv.writer(paramfile);
             for row in final:
@@ -274,12 +290,13 @@ def readFolderWithJSON(rootDirectory, filename, JSONname, multiProcessing):
     else:
         num = 0;
 
+        print("Starting sequential processing...");
         start = time.time();
         with open(JSONname) as f:
             data = json.load(f);
             with open("encodedcsv/" + filename, 'wb') as paramfile:
                 csv_writer = csv.writer(paramfile);
-                for subdir, dirs, files in os.walk(rootDirectory):
+                for subdir, dirs, files in os.walk("data/" + rootDirectory + "/"):
                     imgs = files;
                     sub = subdir;
                     pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(files)).start();
@@ -303,9 +320,6 @@ def mp((name, subdir, letter)):
     values = receptor.output;
     values[0:0] = letter;
     return values;
-
-def callback(n):
-    pass
 
 if __name__ == '__main__':
     import argparse
