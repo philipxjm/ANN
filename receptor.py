@@ -7,25 +7,30 @@ import os
 import csv
 import sys
 import time
+import json
+from functools import partial
 from PIL import Image
+from multiprocessing import Pool, cpu_count
 from progressbar import Bar, Percentage, ProgressBar, SimpleProgress
 
 class Receptor:
     def __init__(self, inputURL, letter):
-        self.inputImg = Image.open(inputURL);
-        self.inputArr = np.array(self.inputImg);
+        self.inputArr = np.array(Image.open(inputURL));
+
         self.output = [];
+        # output is a list of all receptor values
+        # to be fed into the neural net
+        # x1, x2, x3, x4, x5 = horizontal values
+        # x6, x7, x8, x9, x10 = vertical values
+        # x11 = horizontal symmetry value
+        # x12 = vertical symmetry value
+
         self.letter = letter;
-        #output is a list of all receptor values
-        #to be fed into the neural net
-        #x1, x2, x3, x4, x5 = horizontal values
-        #x6, x7, x8, x9, x10 = vertical values
-        #x11 = horizontal symmetry value
-        #x12 = vertical symmetry value
-        np.set_printoptions(linewidth = 1000);
-        np.set_printoptions(threshold=np.nan);
+        # np.set_printoptions(linewidth = 1000);
+        # np.set_printoptions(threshold=np.nan);
         self.inputArr.astype(int);
-        #print("Original Image: \n" + str(self.inputArr));
+        # print("Original Image: \n" + str(self.inputArr));
+
         self._createHorizontalValueReceptors();
         self._createVerticalValueReceptors();
         self._createHorizontalSymmetryReceptors();
@@ -34,6 +39,7 @@ class Receptor:
         self._createCavityReceptors();
         self._createBlockReceptors();
         #self._createSumReceptors();
+
         #print("Letter: " + letter + ", Output Array: " + str(self.output));
 
     def _createHorizontalValueReceptors(self):
@@ -129,7 +135,7 @@ class Receptor:
         ho, wo = self.inputArr.shape;
         hn = ho + 2;
         wn = wo + 2;
-        self.newArr = np.full([hn, wn], 255);
+        self.newArr = np.full([hn, wn], 255, dtype='int64');
 
         for x in range(ho):
             for y in range(wo):
@@ -215,10 +221,10 @@ class Receptor:
         return res;
 
 
-def readFolderWithName(rootDirectory, filename):
+def readFolderWithName(rootDirectory, filename, multiProcessing):
     num = 0;
     start = time.time();
-    with open(filename, 'wb') as paramfile:
+    with open("encodedcsv/" + filename, 'wb') as paramfile:
         csv_writer = csv.writer(paramfile);
         for subdir, dirs, files in os.walk(rootDirectory):
             pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(files)).start();
@@ -235,42 +241,82 @@ def readFolderWithName(rootDirectory, filename):
     print("\nSaved data as: " + filename);
     print("Time Elapsed: " + str(end - start) + " seconds");
 
-def readFolderWithJSON(rootDirectory, filename, JSONname):
-    import json;
-    num = 0;
-    start = time.time();
-    with open(JSONname) as f:
-        data = json.load(f);
-        with open(filename, 'wb') as paramfile:
-            csv_writer = csv.writer(paramfile);
+def readFolderWithJSON(rootDirectory, filename, JSONname, multiProcessing):
+
+    if multiProcessing:
+        print("Starting Multiprocessing...");
+        start = time.time();
+        imgs = [];
+
+        try:
+            threadcount = cpu_count();
+        except NotImplementedError:
+            threadcount = 2;
+            print('Error getting core counts, setting threadcount to 2');
+        threads = Pool(threadcount);
+
+        with open(JSONname) as f:
+            data = json.load(f);
             for subdir, dirs, files in os.walk(rootDirectory):
-                pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(files)).start();
                 for name in files:
-                    #print str(json.dumps(data["data"][int(name[:-4]) - 1])[1]);
-                    receptor = Receptor(subdir + name, letter = str(json.dumps(data["data"][int(name[:-4])])[1]));
-                    values = receptor.output;
-                    values[0:0] = str(json.dumps(data["data"][int(name[:-4])])[1]);
-                    # print values;
-                    csv_writer.writerow([x for x in values]);
-                    # print("fileNumber: " + str(num) + ", letter: " + name[-5]);
-                    num += 1;
-                    pbar.update(num);
-                pbar.finish();
+                    imgs.append([name, subdir, str(json.dumps(data["data"][int(name[:-4])])[1])]);
+        final = threads.map(partial(mp), imgs);
 
-    end = time.time();
-    print("\nSaved data as: " + filename);
-    print("Time Elapsed: " + str(end - start) + " seconds");
+        with open("encodedcsv/" + filename, 'wb') as paramfile:
+            csv_writer = csv.writer(paramfile);
+            for row in final:
+                csv_writer.writerow([x for x in row]);
 
+        end = time.time();
+        print("\nSaved data as: " + filename);
+        print("Time Elapsed: " + str(end - start) + " seconds");
+
+    else:
+        num = 0;
+
+        start = time.time();
+        with open(JSONname) as f:
+            data = json.load(f);
+            with open("encodedcsv/" + filename, 'wb') as paramfile:
+                csv_writer = csv.writer(paramfile);
+                for subdir, dirs, files in os.walk(rootDirectory):
+                    imgs = files;
+                    sub = subdir;
+                    pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(files)).start();
+                    for name in files:
+                        receptor = Receptor(subdir + name, letter = str(json.dumps(data["data"][int(name[:-4])])[1]));
+                        values = receptor.output;
+                        values[0:0] = str(json.dumps(data["data"][int(name[:-4])])[1]);
+                        # print values;
+                        csv_writer.writerow([x for x in values]);
+                        # print("fileNumber: " + str(num) + ", letter: " + name[-5]);
+                        num += 1;
+                        pbar.update(num);
+                    pbar.finish();
+
+        end = time.time();
+        print("\nSaved data as: " + filename);
+        print("Time Elapsed: " + str(end - start) + " seconds");
+
+def mp((name, subdir, letter)):
+    receptor = Receptor(subdir + name, letter);
+    values = receptor.output;
+    values[0:0] = letter;
+    return values;
+
+def callback(n):
+    pass
 
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description="Parser to create parameter file from directory of character images");
     parser.add_argument('-r', type=str, required=True, help="set name of directory to parse");
     parser.add_argument('-o', type=str, default="param.csv", help="set prefered names of output csv file, default param.csv");
-    parser.add_argument('-mt', type=bool, default=True, help="Multi-processing, default true");
+    parser.add_argument('-mp', action='store_true', default=False, help="Multi-processing, default false");
     parser.add_argument('-json', type=str, help="set JSON file name of letters, if none then assumed to be non-JSON");
     opts = parser.parse_args();
+
     if(opts.json):
-        readFolderWithJSON(opts.r, opts.o, opts.json);
+        readFolderWithJSON(opts.r, opts.o, opts.json, opts.mp);
     else:
-        readFolderWithName(opts.r, opts.o);
+        readFolderWithName(opts.r, opts.o, opts.mp);
