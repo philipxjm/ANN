@@ -238,7 +238,7 @@ def readFolderWithName(rootDirectory, filename, multiProcessing):
     start = time.time();
     with open("encodedcsv/" + filename, 'wb') as paramfile:
         csv_writer = csv.writer(paramfile);
-        for subdir, dirs, files in os.walk("data/" + rootDirectory + "/"):
+        for subdir, dirs, files in os.walk("data/" + rootDirectory + "/chars/"):
             pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(files)).start();
             for name in files:
                 receptor = Receptor(subdir + name, letter = name[-5]);
@@ -253,7 +253,7 @@ def readFolderWithName(rootDirectory, filename, multiProcessing):
     print("\nSaved data as: " + filename);
     print("Time Elapsed: " + str(end - start) + " seconds");
 
-def readFolderWithJSON(rootDirectory, filename, JSONname, multiProcessing):
+def readFolderWithJSON(rootDirectory, filename, multiProcessing):
 
     if multiProcessing:
         print("Starting Multiprocessing...");
@@ -268,9 +268,9 @@ def readFolderWithJSON(rootDirectory, filename, JSONname, multiProcessing):
         threads = Pool(threadcount);
 
         print("Creating task list...");
-        with open(JSONname) as f:
+        with open("data/" + rootDirectory + "/json/data.json") as f:
             data = json.load(f);
-            for subdir, dirs, files in os.walk("data/" + rootDirectory + "/"):
+            for subdir, dirs, files in os.walk("data/" + rootDirectory + "/chars/"):
                 for name in files:
                     imgs.append([name, subdir, str(json.dumps(data["data"][int(name[:-4])])[1])]);
 
@@ -296,7 +296,7 @@ def readFolderWithJSON(rootDirectory, filename, JSONname, multiProcessing):
             data = json.load(f);
             with open("encodedcsv/" + filename, 'wb') as paramfile:
                 csv_writer = csv.writer(paramfile);
-                for subdir, dirs, files in os.walk("data/" + rootDirectory + "/"):
+                for subdir, dirs, files in os.walk("data/" + rootDirectory + "/chars/"):
                     imgs = files;
                     sub = subdir;
                     pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(files)).start();
@@ -327,10 +327,10 @@ if __name__ == '__main__':
     parser.add_argument('-r', type=str, required=True, help="set name of directory to parse");
     parser.add_argument('-o', type=str, default="param.csv", help="set prefered names of output csv file, default param.csv");
     parser.add_argument('-mp', action='store_true', default=False, help="Multi-processing, default false");
-    parser.add_argument('-json', type=str, help="set JSON file name of letters, if none then assumed to be non-JSON");
+    parser.add_argument('-json', action='store_true', default=False, help="JSON Processing, default false");
     opts = parser.parse_args();
 
     if(opts.json):
-        readFolderWithJSON(opts.r, opts.o, opts.json, opts.mp);
+        readFolderWithJSON(opts.r, opts.o, opts.mp);
     else:
         readFolderWithName(opts.r, opts.o, opts.mp);
