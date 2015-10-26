@@ -84,6 +84,7 @@ class Receptor:
         #print("xIndices: " + str(self.xIndices));
         #print("vParams: " + str(self.vParams));
 
+    # creates horizontal symmertry parameter 0.0 <= x <= 1.0
     def _createHorizontalSymmetryReceptors(self):
         totalElements = self.inputArr.size;
         totalReflectedElements = 0.0;
@@ -108,7 +109,7 @@ class Receptor:
         #print("rightOriginal: \n" + str(rightOriginal));
         #print("hSym: " + str(self.hSym));
 
-
+    # creates vertical symmertry parameter 0.0 <= x <= 1.0
     def _createVerticalSymmetryReceptors(self):
         totalElements = self.inputArr.size;
         totalReflectedElements = 0.0;
@@ -133,16 +134,19 @@ class Receptor:
         #print("bottomOriginal: \n" + str(bottomOriginal));
         #print("vSym: " + str(self.vSym));
 
+    # UNIMPLEMENTED creates parameter from hamadard transform
     def _createHadamardTransformReceptors(self):
         #array must be square, apply Hadamard transform.
         pass
 
+    # creates parameter from sum of all other parameters
     def _createSumReceptors(self):
         n = 0.0;
         for x in range(0, len(self.output)):
             n += self.output[x];
         self.output.append(n/1000.0);
 
+    # creates parameter from number of closed cavities
     def _createCavityReceptors(self):
         ho, wo = self.inputArr.shape;
         hn = ho + 2;
@@ -166,6 +170,7 @@ class Receptor:
         #print("cCount: " + str(cCount));
         self.output.append(cCount);
 
+    # creates parameter from number of seperated blobs
     def _createBlockReceptors(self):
         ho, wo = self.inputArr.shape;
         hn = ho;
@@ -185,6 +190,7 @@ class Receptor:
         #print("cCount: " + str(cCount));
         self.output.append(bCount);
 
+    # algorithm to count amount of cavities
     def _cavityFloodFill(self, x, y):
         h, w = self.newArr.shape;
         toFill = set();
@@ -206,6 +212,7 @@ class Receptor:
                 if y < w-1: # down
                     toFill.add((x, y+1));
 
+    # algorithm to count amount of blocks
     def _blockFloodFill(self, x, y):
         h, w = self.blockArr.shape;
         toFill = set();
@@ -227,12 +234,13 @@ class Receptor:
                 if y < w-1: # down
                     toFill.add((x, y+1));
 
+    # cut array into small pieces
     def _blockshaped(self, arr, nrows, ncols):
         h, w = arr.shape;
         res = (arr.reshape(h//nrows, nrows, -1, ncols).swapaxes(1,2).reshape(-1, nrows, ncols));
         return res;
 
-
+# old method for reading files from a folder
 def readFolderWithName(rootDirectory, filename, multiProcessing):
     num = 0;
     start = time.time();
@@ -253,6 +261,7 @@ def readFolderWithName(rootDirectory, filename, multiProcessing):
     print("\nSaved data as: " + filename);
     print("Time Elapsed: " + str(end - start) + " seconds");
 
+# new method of using json to read files from a folder
 def readFolderWithJSON(rootDirectory, filename, multiProcessing):
 
     if multiProcessing:
@@ -315,6 +324,7 @@ def readFolderWithJSON(rootDirectory, filename, multiProcessing):
         print("\nSaved data as: " + filename);
         print("Time Elapsed: " + str(end - start) + " seconds");
 
+# multiprocessing worker
 def mp((name, subdir, letter)):
     receptor = Receptor(subdir + name, letter);
     values = receptor.output;
