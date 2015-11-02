@@ -4,10 +4,7 @@
 # author: Philip Xu
 
 import math
-import random
-import string
 import numpy as np
-import scipy as sc
 import os
 import csv
 import sys
@@ -301,7 +298,7 @@ def readFolderWithJSON(rootDirectory, filename, multiProcessing):
 
         print("Starting sequential processing...");
         start = time.time();
-        with open(JSONname) as f:
+        with open("data/" + rootDirectory + "/json/data.json") as f:
             data = json.load(f);
             with open("encodedcsv/" + filename, 'wb') as paramfile:
                 csv_writer = csv.writer(paramfile);
