@@ -297,15 +297,15 @@ if __name__ == '__main__':
     # adding arguments
     import argparse
     parser = argparse.ArgumentParser(description="Neural Network for Optical Character Recognition");
-    parser.add_argument('-t', type=str, help="train this network, set name of training csv file");
-    parser.add_argument('-ww', type=str, help="set prefered names of directory to save weights");
-    parser.add_argument('-rw', type=str, help="set the input weights of this network, set name of directory to read weights");
-    parser.add_argument('-r', type=str, help="use this network for recognition, set name of target csv file");
-    parser.add_argument('-ic', type=float, default=1, help="iteration number, default value 1");
-    parser.add_argument('-nc', type=float, default=0.00001, help="learning constant, default value 0.00001");
-    parser.add_argument('-mc', type=float, default=0.001, help="momentum constant, default value 0.001");
-    parser.add_argument('-d', action="store_true", default=False, help="whether to recognize using debug algorithm or not");
-    parser.add_argument('-o', type=str, default="default.txt", help="set name of output file");
+    parser.add_argument('--train', type=str, help="train this network, set name of training csv file");
+    parser.add_argument('--write-weights', type=str, help="set prefered names of directory to save weights");
+    parser.add_argument('--read-weights', type=str, help="set the input weights of this network, set name of directory to read weights");
+    parser.add_argument('--recognize', type=str, help="use this network for recognition, set name of target csv file");
+    parser.add_argument('--set-iteration', type=float, default=1, help="iteration number, default value 1");
+    parser.add_argument('--set-learning', type=float, default=0.00001, help="learning constant, default value 0.00001");
+    parser.add_argument('--set-momentum', type=float, default=0.001, help="momentum constant, default value 0.001");
+    parser.add_argument('--enable-debug', action="store_true", default=False, help="whether to recognize using debug algorithm or not");
+    parser.add_argument('--set-output', type=str, default="default.txt", help="set name of output file");
     opts = parser.parse_args();
 
     # creating a network with input, hidden, and output nodes
@@ -316,28 +316,29 @@ if __name__ == '__main__':
     testingData = None;
 
     # setting vars according to args
-    if(opts.t is not None):
-        trainingData = importCSV("encodedcsv/" + opts.t);
-    if((opts.ww is not None)):
-        n.ww = opts.ww;
+    if(opts.train is not None):
+        trainingData = importCSV("encodedcsv/" + opts.train);
+    if((opts.write_weights is not None)):
+        print("hi")
+        n.ww = opts.write_weights;
     else:
         n.ww = None;
-    if((opts.r is not None)):
-        testingData = importCSV("encodedcsv/" + opts.r);
-    if((opts.rw is not None)):
-        n.importWeights("weights/" + opts.rw + "/wi.csv", "weights/" + opts.rw + "/wo.csv");
+    if((opts.recognize is not None)):
+        testingData = importCSV("encodedcsv/" + opts.recognize);
+    if((opts.read_weights is not None)):
+        n.importWeights("weights/" + opts.read_weights + "/wi.csv", "weights/" + opts.read_weights + "/wo.csv");
 
     # train
     if((trainingData is not None)):
         start = time.time();
         print("Training Progress: ");
         down();
-        pbar2 = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=int(opts.ic)).start();
-        for i in range(int(opts.ic)):
+        pbar2 = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=int(opts.set_iteration)).start();
+        for i in range(int(opts.set_iteration)):
             up();
             pbar1 = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(trainingData)).start();
             for x in range(len(trainingData)):
-                n.train(trainingData[x], opts.nc, opts.mc);
+                n.train(trainingData[x], opts.set_learning, opts.set_momentum);
                 pbar1.update(float(x));
             pbar1.finish();
             pbar2.update(float(i));
@@ -350,9 +351,9 @@ if __name__ == '__main__':
     # test
     if((testingData is not None)):
         start = time.time();
-        if opts.d:
+        if opts.enable_debug:
             n.recognizeDebug(testingData);
         else:
-            n.recognize(testingData, opts.o);
+            n.recognize(testingData, opts.set_output);
         end = time.time();
         print("\nTime took to recognize: " + str(end - start) + " seconds");
