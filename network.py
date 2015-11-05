@@ -319,7 +319,6 @@ if __name__ == '__main__':
     if(opts.train is not None):
         trainingData = importCSV("encodedcsv/" + opts.train);
     if((opts.write_weights is not None)):
-        print("hi")
         n.ww = opts.write_weights;
     else:
         n.ww = None;
