@@ -17,8 +17,11 @@ from progressbar import Bar, Percentage, ProgressBar, SimpleProgress
 
 class Receptor:
     # constructs a receptor opject from a image file
-    def __init__(self, inputURL, letter):
-        self.inputArr = np.array(Image.open(inputURL));
+    def __init__(self, inputData, letter, isURL = True):
+        if isURL:
+            self.inputArr = np.array(Image.open(inputData));
+        else:
+            self.inputArr = inputData;
         self.inputArr.astype(int);
         self.letter = letter;
         # output is a list of all receptor values
@@ -37,6 +40,13 @@ class Receptor:
         # print("Original Image: \n" + str(self.inputArr));
 
         # fills output list with receptors param values
+        self.generateReceptors();
+
+        # this prints the output list for debug
+        # print("Letter: " + letter + ", Output Array: " + str(self.output));
+
+    def generateReceptors(self):
+        # fills output list with receptors param values
         self._createHorizontalValueReceptors();
         self._createVerticalValueReceptors();
         self._createHorizontalSymmetryReceptors();
@@ -45,9 +55,6 @@ class Receptor:
         self._createBlockReceptors();
         # self._createHadamardTransformReceptors();
         # self._createSumReceptors();
-
-        # this prints the output list for debug
-        # print("Letter: " + letter + ", Output Array: " + str(self.output));
 
     # creates 11 horizontal value parameters, at 0%, 10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90%, 100% width
     def _createHorizontalValueReceptors(self):
@@ -237,13 +244,13 @@ class Receptor:
         res = (arr.reshape(h//nrows, nrows, -1, ncols).swapaxes(1,2).reshape(-1, nrows, ncols));
         return res;
 
-# old method for reading files from a folder
+# read all imagefiles from a rootDirectory, and write encodedcsv to an output filename, aquires letter from filename
 def readFolderWithName(rootDirectory, filename, multiProcessing):
     num = 0;
     start = time.time();
     with open("encodedcsv/" + filename, 'wb') as paramfile:
         csv_writer = csv.writer(paramfile);
-        for subdir, dirs, files in os.walk("data/" + rootDirectory + "/chars/"):
+        for subdir, dirs, files in os.walk(rootDirectory + "/chars/"):
             pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(files)).start();
             for name in files:
                 receptor = Receptor(subdir + name, letter = name[-5]);
@@ -258,9 +265,8 @@ def readFolderWithName(rootDirectory, filename, multiProcessing):
     print("\nSaved data as: " + filename);
     print("Time Elapsed: " + str(end - start) + " seconds");
 
-# new method of using json to read files from a folder
+# read all image files from a rootDirectory, and write encodedcsv to an output filename, aquires letter from json
 def readFolderWithJSON(rootDirectory, filename, multiProcessing):
-
     if multiProcessing:
         print("Starting Multiprocessing...");
         start = time.time();
@@ -274,9 +280,9 @@ def readFolderWithJSON(rootDirectory, filename, multiProcessing):
         threads = Pool(threadcount);
 
         print("Creating task list...");
-        with open("data/" + rootDirectory + "/json/data.json") as f:
+        with open(rootDirectory + "/json/data.json") as f:
             data = json.load(f);
-            for subdir, dirs, files in os.walk("data/" + rootDirectory + "/chars/"):
+            for subdir, dirs, files in os.walk(rootDirectory + "/chars/"):
                 for name in files:
                     imgs.append([name, subdir, str(json.dumps(data["data"][int(name[:-4])])[1])]);
 
@@ -298,11 +304,11 @@ def readFolderWithJSON(rootDirectory, filename, multiProcessing):
 
         print("Starting sequential processing...");
         start = time.time();
-        with open("data/" + rootDirectory + "/json/data.json") as f:
+        with open(rootDirectory + "/json/data.json") as f:
             data = json.load(f);
             with open("encodedcsv/" + filename, 'wb') as paramfile:
                 csv_writer = csv.writer(paramfile);
-                for subdir, dirs, files in os.walk("data/" + rootDirectory + "/chars/"):
+                for subdir, dirs, files in os.walk(rootDirectory + "/chars/"):
                     imgs = files;
                     sub = subdir;
                     pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(files)).start();
@@ -321,6 +327,11 @@ def readFolderWithJSON(rootDirectory, filename, multiProcessing):
         print("\nSaved data as: " + filename);
         print("Time Elapsed: " + str(end - start) + " seconds");
 
+# process a single image from input array, default letter is x
+def readArray(arr, letter = "x"):
+    receptor = Receptor(arr, letter, False);
+    return receptor.output;
+
 # multiprocessing worker
 def mp((name, subdir, letter)):
     receptor = Receptor(subdir + name, letter);
@@ -331,10 +342,10 @@ def mp((name, subdir, letter)):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description="Parser to create parameter file from directory of character images");
-    parser.add_argument('-r', type=str, required=True, help="set name of directory to parse");
-    parser.add_argument('-o', type=str, default="param.csv", help="set prefered names of output csv file, default param.csv");
-    parser.add_argument('-mp', action='store_true', default=False, help="Multi-processing, default false");
-    parser.add_argument('-json', action='store_true', default=False, help="JSON Processing, default false");
+    parser.add_argument('--read', type=str, required=True, help="set name of directory to parse");
+    parser.add_argument('--write', type=str, default="param.csv", help="set prefered names of output csv file, default param.csv");
+    parser.add_argument('--enable-multiprocessing', action='store_true', default=False, help="Multi-processing, default false");
+    parser.add_argument('--enable-json-processing', action='store_true', default=False, help="JSON Processing, default false");
     opts = parser.parse_args();
 
     if(opts.json):

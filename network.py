@@ -347,7 +347,7 @@ if __name__ == '__main__':
         end = time.time();
         print("\nTime took to train: " + str(end - start) + " seconds");
 
-    # test
+    # recognition
     if((testingData is not None)):
         start = time.time();
         if opts.enable_debug:
