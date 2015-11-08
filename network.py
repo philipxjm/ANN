@@ -217,8 +217,8 @@ class Network:
             newpath = "weights/" + self.ww;
             if not os.path.exists(newpath):
                 os.makedirs(newpath);
-            np.savetxt("weights/" + self.ww + "/wi.csv", self.wi, delimiter=",");
-            np.savetxt("weights/" + self.ww + "/wo.csv", self.wo, delimiter=",");
+            np.savetxt("weights/" + self.ww + "/wi.csv", self.wi, delimiter=" ");
+            np.savetxt("weights/" + self.ww + "/wo.csv", self.wo, delimiter=" ");
             print("\nSaved weight matrices in: " + "weights/" + self.ww + "/");
 
         # save matrices to default folder
@@ -226,14 +226,14 @@ class Network:
             newpath = "weights/defaultweights";
             if not os.path.exists(newpath):
                 os.makedirs(newpath);
-            np.savetxt("weights/defaultweights/wi.csv", self.wi, delimiter=",");
-            np.savetxt("weights/defaultweights/wo.csv", self.wo, delimiter=",");
+            np.savetxt("weights/defaultweights/wi.csv", self.wi, delimiter=" ");
+            np.savetxt("weights/defaultweights/wo.csv", self.wo, delimiter=" ");
             print("\nSaved weight matrices in: " + "weights/defaultweights/");
 
     # read weight csv into matrices
     def importWeights(self, wiURL, woURL):
-        self.wi = np.loadtxt(open(wiURL,"rb"),delimiter=",");
-        self.wo = np.loadtxt(open(woURL,"rb"),delimiter=",");
+        self.wi = np.loadtxt(open(wiURL,"rb"),delimiter=" ");
+        self.wo = np.loadtxt(open(woURL,"rb"),delimiter=" ");
 
     # training sequence
     def train(self, data, N=0.00001, M=0.001):
@@ -279,7 +279,7 @@ class Network:
 # imports csv as list
 def importCSV(csvURL):
     with open(csvURL, 'rb') as f:
-        reader = csv.reader(f);
+        reader = csv.reader(f, delimiter=' ');
         trainingData = list(reader);
         return trainingData;
 

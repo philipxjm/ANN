@@ -249,8 +249,8 @@ def readFolderWithName(rootDirectory, filename, multiProcessing):
     num = 0;
     start = time.time();
     with open("encodedcsv/" + filename, 'wb') as paramfile:
-        csv_writer = csv.writer(paramfile);
-        for subdir, dirs, files in os.walk(rootDirectory + "/chars/"):
+        csv_writer = csv.writer(paramfile, delimiter=' ');
+        for subdir, dirs, files in os.walk(rootDirectory + '/'):
             pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(files)).start();
             for name in files:
                 receptor = Receptor(subdir + name, letter = name[-5]);
@@ -291,7 +291,7 @@ def readFolderWithJSON(rootDirectory, filename, multiProcessing):
 
         print("Writing results to output file...")
         with open("encodedcsv/" + filename, 'wb') as paramfile:
-            csv_writer = csv.writer(paramfile);
+            csv_writer = csv.writer(paramfile, delimiter=' ');
             for row in final:
                 csv_writer.writerow([x for x in row]);
 
@@ -307,7 +307,7 @@ def readFolderWithJSON(rootDirectory, filename, multiProcessing):
         with open(rootDirectory + "/json/data.json") as f:
             data = json.load(f);
             with open("encodedcsv/" + filename, 'wb') as paramfile:
-                csv_writer = csv.writer(paramfile);
+                csv_writer = csv.writer(paramfile, delimiter=' ');
                 for subdir, dirs, files in os.walk(rootDirectory + "/chars/"):
                     imgs = files;
                     sub = subdir;
@@ -332,6 +332,66 @@ def readArray(arr, letter = "x"):
     receptor = Receptor(arr, letter, False);
     return receptor.output;
 
+def readNewJSON(rootDirectory, jsonname, filename, multiProcessing):
+    if multiProcessing:
+        print("Starting Multiprocessing...");
+        start = time.time();
+        imgs = [];
+
+        try:
+            threadcount = cpu_count();
+        except NotImplementedError:
+            threadcount = 2;
+            print('Error getting core counts, setting threadcount to 2');
+        threads = Pool(threadcount);
+
+        print("Creating task list...");
+        with open(jsonname) as f:
+            data = json.load(f);
+            for i in data["upper"]:
+                for j in data["upper"][str(i.encode('ascii', 'ignore'))]:
+                    imgs.append([str(j), rootDirectory + '/', str(i)[4]]);
+            for i in data["lower"]:
+                for j in data["lower"][str(i.encode('ascii', 'ignore'))]:
+                    imgs.append([str(j), rootDirectory + '/', str(i)[4]]);
+
+        print("Distributing tasks across " + str(threadcount) + " cores...");
+        final = threads.map(partial(mp), imgs);
+
+        print("Writing results to output file...")
+        with open("encodedcsv/" + filename, 'wb') as paramfile:
+            csv_writer = csv.writer(paramfile, delimiter=' ');
+            for row in final:
+                csv_writer.writerow([x for x in row]);
+
+        end = time.time();
+        print("\nSaved data as: " + filename);
+        print("Time Elapsed: " + str(end - start) + " seconds");
+    else:
+        num = 0;
+        print("Starting sequential processing...");
+        start = time.time();
+        with open(jsonname) as f:
+            data = json.load(f);
+            with open("encodedcsv/" + filename, 'wb') as paramfile:
+                csv_writer = csv.writer(paramfile, delimiter=' ');
+                for i in data["upper"]:
+                    for j in data["upper"][str(i.encode('ascii', 'ignore'))]:
+                        receptor = Receptor(rootDirectory + '/' + str(j), str(i)[4]);
+                        values = receptor.output;
+                        values[0:0] = str(i)[4];
+                        csv_writer.writerow([x for x in values]);
+                for i in data["lower"]:
+                    for j in data["lower"][str(i.encode('ascii', 'ignore'))]:
+                        receptor = Receptor(rootDirectory + '/' + str(j), str(i)[4]);
+                        values = receptor.output;
+                        values[0:0] = str(i)[4];
+                        csv_writer.writerow([x for x in values]);
+
+        end = time.time();
+        print("\nSaved data as: " + filename);
+        print("Time Elapsed: " + str(end - start) + " seconds");
+
 # multiprocessing worker
 def mp((name, subdir, letter)):
     receptor = Receptor(subdir + name, letter);
@@ -344,11 +404,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Parser to create parameter file from directory of character images");
     parser.add_argument('--read', type=str, required=True, help="set name of directory to parse");
     parser.add_argument('--write', type=str, default="param.csv", help="set prefered names of output csv file, default param.csv");
+    parser.add_argument('--process-json', type=str, help="Process JSON File");
     parser.add_argument('--enable-multiprocessing', action='store_true', default=False, help="Multi-processing, default false");
-    parser.add_argument('--enable-json-processing', action='store_true', default=False, help="JSON Processing, default false");
     opts = parser.parse_args();
 
-    if(opts.json):
-        readFolderWithJSON(opts.r, opts.o, opts.mp);
+    if(opts.process_json is not None):
+        readNewJSON(opts.read, opts.process_json, opts.write, opts.enable_multiprocessing);
     else:
-        readFolderWithName(opts.r, opts.o, opts.mp);
+        readFolderWithName(opts.read, opts.write, opts.enable_multiprocessing);
