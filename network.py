@@ -423,7 +423,7 @@ if __name__ == '__main__':
         n.setOutputRecognitionFileName(opts.set_output);
 
     if((opts.read_weights is not None)):
-        n.importWeights(opts.read_weights + "/wi.csv", opts.read_weights + "/wo.csv");
+        n.importWeights("weights/" + opts.read_weights + "/wi.csv", "weights/" + opts.read_weights + "/wo.csv");
 
     if(opts.train is not None):
         trainingData = importCSV(opts.train);
