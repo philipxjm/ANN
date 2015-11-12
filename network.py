@@ -317,16 +317,27 @@ class Network:
                 # feedforward inputs
                 self.update(inputs);
 
+                #generate new Learning Constant
+                self.setLearning(self.logisticFunction(100.0*(float(self.trainingProgress)/float(self.trainingTotal))));
+
                 # backpropagate errors
                 error = error + self.backPropagate(targets, self.N, self.M);
 
                 # update progress
                 self.trainingProgress += 1;
+
                 pbar.update(float(n.trainingProgress));
 
         pbar.finish();
         end = time.time();
         print("\nTime took to train: " + str(end - start) + " seconds");
+
+    def logisticFunction(self, x):
+        y = (float(-0.1)/float(1.0+math.e**(-0.5*x)))+0.1;
+        if y < 0.00001:
+            return 0.00001;
+        else:
+            return y;
 
     # take character string and convert to binary string
     def fromCharacterToBinary(self, char):
