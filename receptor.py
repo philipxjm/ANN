@@ -10,6 +10,7 @@ import csv
 import sys
 import time
 import json
+from scipy import misc
 from functools import partial
 from PIL import Image
 from multiprocessing import Pool, cpu_count
@@ -20,6 +21,7 @@ class Receptor:
     def __init__(self):
         self.inputArr = None;
         self.character = "x";
+        self.minimum_group_size = 4;
 
         self.output = [];
         # output is a list of all receptor values
@@ -47,7 +49,7 @@ class Receptor:
         self.character = character;
 
     def importImage(self, inputURL):
-        self.inputArr = np.array(Image.open(inputURL));
+        self.inputArr = misc.imread(inputURL, flatten=True);
 
     def getOutput(self):
         values = self.output;
@@ -67,35 +69,37 @@ class Receptor:
 
     # creates 11 horizontal value parameters, at 0%, 10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90%, 100% width
     def _createHorizontalValueReceptors(self):
-        self.hParams = [];
-        self.yIndices = [];
+        hParams = [];
+        hCount = [];
+        yIndices = [];
         for x in range(11):
-            self.hParams.append(0);
-            self.yIndices.append(math.ceil(self.inputArr.shape[0]*(x*0.1)) - 1);
-        for i in range(self.inputArr.shape[1]):
-            for y in range(11):
-                if(self.inputArr[self.yIndices[y], i] == 0):
-                    self.hParams[y] += 1;
-
-        self.output.extend(self.hParams);
-        #print("yIndices: " + str(self.yIndices));
-        #print("hParams: " + str(self.hParams));
+            hCount.append(0);
+            yIndices.append(math.ceil(self.inputArr.shape[0]*(x*0.1)) - 1);
+        for y in range(11):
+            for i in range(self.inputArr.shape[1]):
+                if(self.inputArr[yIndices[y], i] == 0):
+                    hCount[y] += 1;
+            hParams.append(float(hCount[y])/float(self.inputArr.shape[0]));
+        self.output.extend(hParams);
+        #print("yIndices: " + str(yIndices));
+        #print("hParams: " + str(hParams));
 
     # creates 11 vertical value parameters, at 0%, 10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90%, 100% height
     def _createVerticalValueReceptors(self):
-        self.vParams = [];
-        self.xIndices = [];
+        vParams = [];
+        vCount = [];
+        xIndices = [];
         for x in range(11):
-            self.vParams.append(0);
-            self.xIndices.append(math.ceil(self.inputArr.shape[1]*(x*0.1)) - 1);
-        for i in range(self.inputArr.shape[0]):
-            for y in range(11):
-                if(self.inputArr[i, self.xIndices[y]] == 0):
-                    self.vParams[y] += 1;
-
-        self.output.extend(self.vParams);
-        #print("xIndices: " + str(self.xIndices));
-        #print("vParams: " + str(self.vParams));
+            vCount.append(0);
+            xIndices.append(math.ceil(self.inputArr.shape[1]*(x*0.1)) - 1);
+        for y in range(11):
+            for i in range(self.inputArr.shape[0]):
+                if(self.inputArr[i, xIndices[y]] == 0):
+                    vCount[y] += 1;
+            vParams.append(float(vCount[y])/float(self.inputArr.shape[1]));
+        self.output.extend(vParams);
+        #print("xIndices: " + str(xIndices));
+        #print("vParams: " + str(vParams));
 
     # creates horizontal symmertry parameter 0.0 <= x <= 1.0
     def _createHorizontalSymmetryReceptors(self):
@@ -177,8 +181,9 @@ class Receptor:
         for x in range(hn):
             for y in range(wn):
                 if(self.newArr[x, y] == 255):
-                    self._cavityFloodFill(x, y);
-                    cCount += 1;
+                    if self._cavityFloodFill(x, y) > self.minimum_group_size:
+                        cCount += 1;
+
         #print(self.newArr);
         #print("cCount: " + str(cCount));
         self.output.append(cCount);
@@ -196,8 +201,8 @@ class Receptor:
         for x in range(hn):
             for y in range(wn):
                 if(self.blockArr[x, y] == 0):
-                    self._blockFloodFill(x, y);
-                    bCount += 1;
+                    if self._blockFloodFill(x, y) > self.minimum_group_size:
+                        bCount += 1;
 
         #print(self.blockArr);
         #print("cCount: " + str(cCount));
@@ -205,6 +210,7 @@ class Receptor:
 
     # algorithm to count amount of cavities
     def _cavityFloodFill(self, x, y):
+        pixelCount = 0;
         h, w = self.newArr.shape;
         toFill = set();
         toFill.add((x,y));
@@ -212,6 +218,7 @@ class Receptor:
             (x,y) = toFill.pop();
             if(self.newArr[x,y] == 255):
                 self.newArr[x,y] = 11;
+                pixelCount += 1;
 
                 if x > 0: # left
                     toFill.add((x-1, y));
@@ -224,9 +231,11 @@ class Receptor:
 
                 if y < w-1: # down
                     toFill.add((x, y+1));
+        return pixelCount;
 
     # algorithm to count amount of blocks
     def _blockFloodFill(self, x, y):
+        pixelCount = 0;
         h, w = self.blockArr.shape;
         toFill = set();
         toFill.add((x,y));
@@ -234,6 +243,7 @@ class Receptor:
             (x,y) = toFill.pop();
             if(self.blockArr[x,y] == 0):
                 self.blockArr[x, y] = 11;
+                pixelCount += 1;
 
                 if x > 0: # left
                     toFill.add((x-1, y));
@@ -246,6 +256,7 @@ class Receptor:
 
                 if y < w-1: # down
                     toFill.add((x, y+1));
+        return pixelCount;
 
     # cut array into small pieces
     def _blockshaped(self, arr, nrows, ncols):
@@ -283,7 +294,7 @@ class ReceptorRunner:
             with open("encodedcsv/" + self.outputFileName, 'wb') as paramfile:
                 csv_writer = csv.writer(paramfile, delimiter=' ');
                 for subdir, dirs, files in os.walk(self.rootDirectory + '/'):
-                    pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(files)).start();
+                    # pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(files)).start();
                     for name in files:
                         receptor = Receptor();
                         receptor.importImage(subdir + name);
@@ -293,8 +304,8 @@ class ReceptorRunner:
                         csv_writer.writerow([x for x in values]);
                         # print("fileNumber: " + str(num) + ", character: " + name[-5]);
                         num += 1;
-                        pbar.update(num);
-                    pbar.finish();
+                        # pbar.update(num);
+                    # pbar.finish();
             end = time.time();
             print("\nSaved data as: " + self.outputFileName);
             print("Time Elapsed: " + str(end - start) + " seconds");
