@@ -62,6 +62,49 @@ class Network:
         self.ci = makeMatrix(self.ni, self.nh);
         self.co = makeMatrix(self.nh, self.no);
 
+        # parameters
+        self.I=1; # iteration
+        self.N=0.00001; # learning
+        self.M=0.001; # momentum
+        self.debug = False; # instead of recognizing and writing to a file, debug will analyze the accuracy of recognition
+        self.outputWeightFilename = "default"; # output filename of weight files
+        self.outputRecognitionFilename = "default.txt"; # output filename of recognized document
+        self.trainingData = None; # training data
+        self.testingData = None; # testing data
+        self.trainingProgress = 0; # progress of training
+        self.trainingTotal = 0; # total numbers of times the network needs to be trained, = I * len(trainingData)
+        self.recognitionProgress = 0; # progress of recognition
+        self.recognitionTotal = 0; # total numbers of letters needed to be recognized
+        self.outlist = []; # list of output characters from recognition;
+
+    def setLearning(self, N):
+        self.N = N;
+
+    def setMomentum(self, M):
+        self.M = M;
+
+    def setIteration(self, I):
+        self.I = I;
+
+    def setWeights(self, wi, wo):
+        self.wi = wi;
+        self.wo = wo;
+
+    def setOutputWeightFileName(self, filename):
+        self.outputWeightFilename = filename;
+
+    def setOutputRecognitionFileName(self, filename):
+        self.outputRecognitionFilename = filename;
+
+    def enableDebugRecognition(self):
+        self.debug = True;
+
+    def setTrainingData(self, data):
+        self.trainingData = data;
+
+    def setTestingData(self, data):
+        self.testingData = data;
+
     # feed forward data
     def update(self, inputs):
         if len(inputs) != self.ni-1:
@@ -133,75 +176,89 @@ class Network:
             error = error + 0.5*(float(targets[k])-self.ao[k])**2;
         return error;
 
-    # recognition sequence but with error display
-    def recognizeDebug(self, data):
-        # set vars for error calculations
-        numCorrect = 0.0;
-        totalNum = 0.0;
-        errorList = [];
-
-        # recognition process
-        print("Recognition (Debug) Progress:");
-        pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(data)).start();
-        for p in data:
-            binList = self.update(p[1:]);
-            binStr = "";
-            for x in binList:
-                if(x <= 0):
-                    binStr = binStr + str(0);
-                else:
-                    binStr = binStr + str(1);
-
-            # print(str(p[0]) + ' -> ' + self.fromBinaryToCharacter(binStr));
-
-            if(str(p[0]) == self.fromBinaryToCharacter(binStr)):
-                numCorrect += 1;
-            else:
-                errorList.append(str(p[0]) + ' -> ' + self.fromBinaryToCharacter(binStr));
-            totalNum += 1;
-            pbar.update(totalNum);
-        pbar.finish();
-
-        # print all errors made
-        for l in errorList:
-            print("Bad Recognition: " + str(l));
-
-        # print results
-        print("\n");
-        print("Accuracy: " + str(round((numCorrect/len(data))*100.0, 2)) + "%");
-
     # recognition sequence
-    def recognize(self, data, filename):
-        # set vars for error calculations
-        totalNum = 0;
-        outlist = [];
+    def recognize(self):
+        if self.testingData is None:
+            print "No recognition data imported, aborting recognition";
+            return;
 
         # recognition process
-        print("Recognition Progress:");
-        pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(data)).start();
-        for p in data:
-            binList = self.update(p[1:]);
-            binStr = "";
-            for x in binList:
-                if(x <= 0):
-                    binStr = binStr + str(0);
-                else:
-                    binStr = binStr + str(1);
-            # print(binStr);
-            # print("number: " + str(idx) + ' -> ' + self.fromBinaryToCharacter(binStr));
-            outlist.append(self.fromBinaryToCharacter(binStr));
-            totalNum += 1;
-            pbar.update(totalNum);
+        start = time.time();
+        self.recognitionProgress = 0;
+        self.recognitionTotal = len(self.testingData);
 
+        if not self.debug:
+            print("Recognition Progress:");
+            pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=self.recognitionTotal).start();
+
+            for p in self.testingData:
+                binList = self.update(p[1:]);
+                binStr = "";
+                for x in binList:
+                    if(x <= 0):
+                        binStr = binStr + str(0);
+                    else:
+                        binStr = binStr + str(1);
+                # print(binStr);
+                # print("number: " + str(idx) + ' -> ' + self.fromBinaryToCharacter(binStr));
+                self.outlist.append(self.fromBinaryToCharacter(binStr));
+                self.recognitionProgress += 1;
+                pbar.update(self.recognitionProgress);
+
+            pbar.finish();
+        else:
+            numCorrect = 0.0;
+            errorList = [];
+
+            # recognition process
+            print("Recognition (Debug) Progress:");
+            pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=self.recognitionTotal).start();
+            for p in self.testingData:
+                binList = self.update(p[1:]);
+                binStr = "";
+                for x in binList:
+                    if(x <= 0):
+                        binStr = binStr + str(0);
+                    else:
+                        binStr = binStr + str(1);
+
+                # print(str(p[0]) + ' -> ' + self.fromBinaryToCharacter(binStr));
+
+                if(str(p[0]) == self.fromBinaryToCharacter(binStr)):
+                    numCorrect += 1;
+                else:
+                    errorList.append(str(p[0]) + ' -> ' + self.fromBinaryToCharacter(binStr));
+                self.recognitionProgress += 1;
+                pbar.update(self.recognitionProgress);
+            pbar.finish();
+
+            # print all errors made
+            for l in errorList:
+                print("Bad Recognition: " + str(l));
+
+            # print results
+            print("\n");
+            print("Accuracy: " + str(round((numCorrect/len(self.testingData))*100.0, 2)) + "%");
+
+
+        end = time.time();
+        print("\nTime took to recognize: " + str(end - start) + " seconds");
+
+    # write outlist down as file
+    def exportRecognitionText(self):
+        if self.debug:
+            return;
+        if self.testingData is None:
+            print "No recognition data imported, aborting export of text";
+            return;
         # saving recognized string as textfile
-        out = "".join(outlist);
+        out = "".join(self.outlist);
         if not os.path.exists("out"):
             os.makedirs("out");
-        text_file = open("out/" + filename, "w");
+        text_file = open("out/" + self.outputRecognitionFilename, "w");
         text_file.write(out);
         text_file.close();
-        pbar.finish();
-        print("Wrote recognized text to: " + "out/" + filename);
+        print("Wrote recognized text to: " + "out/" + self.outputRecognitionFilename);
 
     # print weights matrices
     def weights(self):
@@ -213,13 +270,13 @@ class Network:
     # save weight matrices as csv
     def saveWeights(self):
         # save matrices to specified location
-        if((self.ww is not None)):
-            newpath = "weights/" + self.ww;
+        if((self.outputWeightFilename is not None)):
+            newpath = "weights/" + self.outputWeightFilename;
             if not os.path.exists(newpath):
                 os.makedirs(newpath);
-            np.savetxt("weights/" + self.ww + "/wi.csv", self.wi, delimiter=" ");
-            np.savetxt("weights/" + self.ww + "/wo.csv", self.wo, delimiter=" ");
-            print("\nSaved weight matrices in: " + "weights/" + self.ww + "/");
+            np.savetxt("weights/" + self.outputWeightFilename + "/wi.csv", self.wi, delimiter=" ");
+            np.savetxt("weights/" + self.outputWeightFilename + "/wo.csv", self.wo, delimiter=" ");
+            print("\nSaved weight matrices in: " + "weights/" + self.outputWeightFilename + "/");
 
         # save matrices to default folder
         else:
@@ -236,20 +293,40 @@ class Network:
         self.wo = np.loadtxt(open(woURL,"rb"),delimiter=" ");
 
     # training sequence
-    def train(self, data, N=0.00001, M=0.001):
+    def train(self):
         # N: learning rate
         # M: momentum factor
-        error = 0.0;
-        inputs = data[1:];
+        if self.trainingData is None:
+            print "No Training Data Loaded";
+            return;
 
-        # target output node activations
-        targets = self.fromCharacterToBinary(data[0]);
+        start = time.time();
+        print("Training Progress: ");
+        self.trainingProgress = 0;
+        self.trainingTotal = self.I * len(self.trainingData);
+        pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=int(self.trainingTotal)).start();
 
-        # feedforward inputs
-        self.update(inputs);
+        for i in range(int(self.I)):
+            for x in range(len(self.trainingData)):
+                error = 0.0;
+                inputs = self.trainingData[x][1:];
 
-        # backpropagate errors
-        error = error + self.backPropagate(targets, N, M);
+                # target output node activations
+                targets = self.fromCharacterToBinary(self.trainingData[x][0]);
+
+                # feedforward inputs
+                self.update(inputs);
+
+                # backpropagate errors
+                error = error + self.backPropagate(targets, self.N, self.M);
+
+                # update progress
+                self.trainingProgress += 1;
+                pbar.update(float(n.trainingProgress));
+
+        pbar.finish();
+        end = time.time();
+        print("\nTime took to train: " + str(end - start) + " seconds");
 
     # take character string and convert to binary string
     def fromCharacterToBinary(self, char):
@@ -316,43 +393,41 @@ if __name__ == '__main__':
     testingData = None;
 
     # setting vars according to args
-    if(opts.train is not None):
-        trainingData = importCSV("encodedcsv/" + opts.train);
+    if(opts.set_iteration is not None):
+        n.setIteration(opts.set_iteration);
+
+    if(opts.set_learning is not None):
+        n.setLearning(opts.set_learning);
+
+    if(opts.set_momentum is not None):
+        n.setMomentum(opts.set_momentum);
+
+    if(opts.enable_debug):
+        n.enableDebugRecognition();
+
     if((opts.write_weights is not None)):
-        n.ww = opts.write_weights;
-    else:
-        n.ww = None;
-    if((opts.recognize is not None)):
-        testingData = importCSV("encodedcsv/" + opts.recognize);
+        n.setOutputWeightFileName(opts.write_weights);
+
+    if((opts.set_output is not None)):
+        n.setOutputRecognitionFileName(opts.set_output);
+
     if((opts.read_weights is not None)):
-        n.importWeights("weights/" + opts.read_weights + "/wi.csv", "weights/" + opts.read_weights + "/wo.csv");
+        n.importWeights(opts.read_weights + "/wi.csv", opts.read_weights + "/wo.csv");
+
+    if(opts.train is not None):
+        trainingData = importCSV(opts.train);
+        n.setTrainingData(trainingData);
+
+    if((opts.recognize is not None)):
+        testingData = importCSV(opts.recognize);
+        n.setTestingData(testingData);
 
     # train
     if((trainingData is not None)):
-        start = time.time();
-        print("Training Progress: ");
-        down();
-        pbar2 = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=int(opts.set_iteration)).start();
-        for i in range(int(opts.set_iteration)):
-            up();
-            pbar1 = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(trainingData)).start();
-            for x in range(len(trainingData)):
-                n.train(trainingData[x], opts.set_learning, opts.set_momentum);
-                pbar1.update(float(x));
-            pbar1.finish();
-            pbar2.update(float(i));
-            # print('error %-.5f' % error);
-        pbar2.finish();
+        n.train();
         n.saveWeights();
-        end = time.time();
-        print("\nTime took to train: " + str(end - start) + " seconds");
 
     # recognition
     if((testingData is not None)):
-        start = time.time();
-        if opts.enable_debug:
-            n.recognizeDebug(testingData);
-        else:
-            n.recognize(testingData, opts.set_output);
-        end = time.time();
-        print("\nTime took to recognize: " + str(end - start) + " seconds");
+        n.recognize();
+        n.exportRecognitionText();

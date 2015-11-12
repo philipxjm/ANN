@@ -17,13 +17,11 @@ from progressbar import Bar, Percentage, ProgressBar, SimpleProgress
 
 class Receptor:
     # constructs a receptor opject from a image file
-    def __init__(self, inputData, letter, isURL = True):
-        if isURL:
-            self.inputArr = np.array(Image.open(inputData));
-        else:
-            self.inputArr = inputData;
-        self.inputArr.astype(int);
-        self.letter = letter;
+    def __init__(self):
+        self.inputArr = None;
+        self.character = "x";
+
+        self.output = [];
         # output is a list of all receptor values
         # to be fed into the neural net
         # x1 - x11 = horizontal values
@@ -32,18 +30,29 @@ class Receptor:
         # x24 = vertical symmetry value
         # x25 = cavity count
         # x26 = block count
-        self.output = [];
 
         # set array print options to more readable
         # np.set_printoptions(linewidth = 1000);
         # np.set_printoptions(threshold=np.nan);
         # print("Original Image: \n" + str(self.inputArr));
 
-        # fills output list with receptors param values
-        self.generateReceptors();
-
         # this prints the output list for debug
-        # print("Letter: " + letter + ", Output Array: " + str(self.output));
+        # print("Character: " + character + ", Output Array: " + str(self.output));
+
+    def setInputArr(self, arr):
+        self.inputArr = arr;
+        self.inputArr.astype(int);
+
+    def setCharacter(self, character):
+        self.character = character;
+
+    def importImage(self, inputURL):
+        self.inputArr = np.array(Image.open(inputURL));
+
+    def getOutput(self):
+        values = self.output;
+        values[0:0] = self.character;
+        return values;
 
     def generateReceptors(self):
         # fills output list with receptors param values
@@ -244,159 +253,123 @@ class Receptor:
         res = (arr.reshape(h//nrows, nrows, -1, ncols).swapaxes(1,2).reshape(-1, nrows, ncols));
         return res;
 
-# read all imagefiles from a rootDirectory, and write encodedcsv to an output filename, aquires letter from filename
-def readFolderWithName(rootDirectory, filename, multiProcessing):
-    num = 0;
-    start = time.time();
-    with open("encodedcsv/" + filename, 'wb') as paramfile:
-        csv_writer = csv.writer(paramfile, delimiter=' ');
-        for subdir, dirs, files in os.walk(rootDirectory + '/'):
-            pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(files)).start();
-            for name in files:
-                receptor = Receptor(subdir + name, letter = name[-5]);
-                values = receptor.output;
-                values[0:0] = name[-5];
-                csv_writer.writerow([x for x in values]);
-                # print("fileNumber: " + str(num) + ", letter: " + name[-5]);
-                num += 1;
-                pbar.update(num);
-            pbar.finish();
-    end = time.time();
-    print("\nSaved data as: " + filename);
-    print("Time Elapsed: " + str(end - start) + " seconds");
+class ReceptorRunner:
+    def __init__(self):
+        self.multiprocessing = False;
+        self.rootDirectory = None;
+        self.outputFileName = "encodedcsv/default.csv";
+        self.inputJSONFileName = None;
 
-# read all image files from a rootDirectory, and write encodedcsv to an output filename, aquires letter from json
-def readFolderWithJSON(rootDirectory, filename, multiProcessing):
-    if multiProcessing:
-        print("Starting Multiprocessing...");
-        start = time.time();
-        imgs = [];
+    def enableMultiprocessing(self):
+        self.multiprocessing = True;
 
-        try:
-            threadcount = cpu_count();
-        except NotImplementedError:
-            threadcount = 2;
-            print('Error getting core counts, setting threadcount to 2');
-        threads = Pool(threadcount);
+    def setRootDirectory(self, rootDirectory):
+        self.rootDirectory = rootDirectory;
 
-        print("Creating task list...");
-        with open(rootDirectory + "/json/data.json") as f:
-            data = json.load(f);
-            for subdir, dirs, files in os.walk(rootDirectory + "/chars/"):
-                for name in files:
-                    imgs.append([name, subdir, str(json.dumps(data["data"][int(name[:-4])])[1])]);
+    def setOutputFilename(self, outputFileName):
+        self.outputFileName = outputFileName;
 
-        print("Distributing tasks across " + str(threadcount) + " cores...");
-        final = threads.map(partial(mp), imgs);
+    def setInputJSONFileName(self, inputJSONFileName):
+        self.inputJSONFileName = inputJSONFileName;
 
-        print("Writing results to output file...")
-        with open("encodedcsv/" + filename, 'wb') as paramfile:
-            csv_writer = csv.writer(paramfile, delimiter=' ');
-            for row in final:
-                csv_writer.writerow([x for x in row]);
-
-        end = time.time();
-        print("\nSaved data as: " + filename);
-        print("Time Elapsed: " + str(end - start) + " seconds");
-
-    else:
-        num = 0;
-
-        print("Starting sequential processing...");
-        start = time.time();
-        with open(rootDirectory + "/json/data.json") as f:
-            data = json.load(f);
-            with open("encodedcsv/" + filename, 'wb') as paramfile:
+    def process(self):
+        if self.rootDirectory is None:
+            print "Root directory is not set, aborting."
+            return;
+        if self.inputJSONFileName is None:
+            print "Input JSON is not set, reading flat image folder."
+            num = 0;
+            start = time.time();
+            with open("encodedcsv/" + self.outputFileName, 'wb') as paramfile:
                 csv_writer = csv.writer(paramfile, delimiter=' ');
-                for subdir, dirs, files in os.walk(rootDirectory + "/chars/"):
-                    imgs = files;
-                    sub = subdir;
+                for subdir, dirs, files in os.walk(self.rootDirectory + '/'):
                     pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=len(files)).start();
                     for name in files:
-                        receptor = Receptor(subdir + name, letter = str(json.dumps(data["data"][int(name[:-4])])[1]));
-                        values = receptor.output;
-                        values[0:0] = str(json.dumps(data["data"][int(name[:-4])])[1]);
-                        # print values;
+                        receptor = Receptor();
+                        receptor.importImage(subdir + name);
+                        receptor.generateReceptors();
+                        receptor.setCharacter("x");
+                        values = receptor.getOutput();
                         csv_writer.writerow([x for x in values]);
-                        # print("fileNumber: " + str(num) + ", letter: " + name[-5]);
+                        # print("fileNumber: " + str(num) + ", character: " + name[-5]);
                         num += 1;
                         pbar.update(num);
                     pbar.finish();
+            end = time.time();
+            print("\nSaved data as: " + self.outputFileName);
+            print("Time Elapsed: " + str(end - start) + " seconds");
+        elif self.multiprocessing:
+            print("Starting Multiprocessing...");
+            start = time.time();
+            imgs = [];
 
-        end = time.time();
-        print("\nSaved data as: " + filename);
-        print("Time Elapsed: " + str(end - start) + " seconds");
+            try:
+                threadcount = cpu_count();
+            except NotImplementedError:
+                threadcount = 2;
+                print('Error getting core counts, setting threadcount to 2');
+            threads = Pool(threadcount);
 
-# process a single image from input array, default letter is x
-def readArray(arr, letter = "x"):
-    receptor = Receptor(arr, letter, False);
-    return receptor.output;
-
-def readNewJSON(rootDirectory, jsonname, filename, multiProcessing):
-    if multiProcessing:
-        print("Starting Multiprocessing...");
-        start = time.time();
-        imgs = [];
-
-        try:
-            threadcount = cpu_count();
-        except NotImplementedError:
-            threadcount = 2;
-            print('Error getting core counts, setting threadcount to 2');
-        threads = Pool(threadcount);
-
-        print("Creating task list...");
-        with open(jsonname) as f:
-            data = json.load(f);
-            for i in data["upper"]:
-                for j in data["upper"][str(i.encode('ascii', 'ignore'))]:
-                    imgs.append([str(j), rootDirectory + '/', str(i)[4]]);
-            for i in data["lower"]:
-                for j in data["lower"][str(i.encode('ascii', 'ignore'))]:
-                    imgs.append([str(j), rootDirectory + '/', str(i)[4]]);
-
-        print("Distributing tasks across " + str(threadcount) + " cores...");
-        final = threads.map(partial(mp), imgs);
-
-        print("Writing results to output file...")
-        with open("encodedcsv/" + filename, 'wb') as paramfile:
-            csv_writer = csv.writer(paramfile, delimiter=' ');
-            for row in final:
-                csv_writer.writerow([x for x in row]);
-
-        end = time.time();
-        print("\nSaved data as: " + filename);
-        print("Time Elapsed: " + str(end - start) + " seconds");
-    else:
-        num = 0;
-        print("Starting sequential processing...");
-        start = time.time();
-        with open(jsonname) as f:
-            data = json.load(f);
-            with open("encodedcsv/" + filename, 'wb') as paramfile:
-                csv_writer = csv.writer(paramfile, delimiter=' ');
+            print("Creating task list...");
+            with open(self.inputJSONFileName) as f:
+                data = json.load(f);
                 for i in data["upper"]:
                     for j in data["upper"][str(i.encode('ascii', 'ignore'))]:
-                        receptor = Receptor(rootDirectory + '/' + str(j), str(i)[4]);
-                        values = receptor.output;
-                        values[0:0] = str(i)[4];
-                        csv_writer.writerow([x for x in values]);
+                        imgs.append([str(j), self.rootDirectory + '/', str(i)[4]]);
                 for i in data["lower"]:
                     for j in data["lower"][str(i.encode('ascii', 'ignore'))]:
-                        receptor = Receptor(rootDirectory + '/' + str(j), str(i)[4]);
-                        values = receptor.output;
-                        values[0:0] = str(i)[4];
-                        csv_writer.writerow([x for x in values]);
+                        imgs.append([str(j), self.rootDirectory + '/', str(i)[4]]);
 
-        end = time.time();
-        print("\nSaved data as: " + filename);
-        print("Time Elapsed: " + str(end - start) + " seconds");
+            print("Distributing tasks across " + str(threadcount) + " cores...");
+            final = threads.map(partial(mp), imgs);
+
+            print("Writing results to output file...")
+            with open("encodedcsv/" + self.outputFileName, 'wb') as paramfile:
+                csv_writer = csv.writer(paramfile, delimiter=' ');
+                for row in final:
+                    csv_writer.writerow([x for x in row]);
+
+            end = time.time();
+            print("\nSaved data as: " + self.outputFileName);
+            print("Time Elapsed: " + str(end - start) + " seconds");
+        elif not self.multiprocessing:
+            print("Starting sequential processing...");
+            num = 0;
+            start = time.time();
+            with open(self.inputJSONFileName) as f:
+                data = json.load(f);
+                with open("encodedcsv/" + self.outputFileName, 'wb') as paramfile:
+                    csv_writer = csv.writer(paramfile, delimiter=' ');
+                    for i in data["upper"]:
+                        for j in data["upper"][str(i.encode('ascii', 'ignore'))]:
+                            receptor = Receptor();
+                            receptor.importImage(self.rootDirectory + '/' + str(j));
+                            receptor.generateReceptors();
+                            receptor.setCharacter(str(i)[4]);
+                            values = receptor.getOutput();
+                            csv_writer.writerow([x for x in values]);
+                    for i in data["lower"]:
+                        for j in data["lower"][str(i.encode('ascii', 'ignore'))]:
+                            receptor = Receptor();
+                            receptor.importImage(self.rootDirectory + '/' + str(j));
+                            receptor.generateReceptors();
+                            receptor.setCharacter(str(i)[4]);
+                            values = receptor.getOutput();
+                            csv_writer.writerow([x for x in values]);
+            end = time.time();
+            print("\nSaved data as: " + self.outputFileName);
+            print("Time Elapsed: " + str(end - start) + " seconds");
+        else:
+            print "error during processing, check parameters, aborting."
+            return;
 
 # multiprocessing worker
-def mp((name, subdir, letter)):
-    receptor = Receptor(subdir + name, letter);
-    values = receptor.output;
-    values[0:0] = letter;
+def mp((name, subdir, character)):
+    receptor = Receptor();
+    receptor.importImage(subdir + name);
+    receptor.generateReceptors();
+    receptor.setCharacter(character);
+    values = receptor.getOutput();
     return values;
 
 if __name__ == '__main__':
@@ -408,7 +381,18 @@ if __name__ == '__main__':
     parser.add_argument('--enable-multiprocessing', action='store_true', default=False, help="Multi-processing, default false");
     opts = parser.parse_args();
 
-    if(opts.process_json is not None):
-        readNewJSON(opts.read, opts.process_json, opts.write, opts.enable_multiprocessing);
-    else:
-        readFolderWithName(opts.read, opts.write, opts.enable_multiprocessing);
+    runner = ReceptorRunner();
+
+    if opts.read is not None:
+        runner.setRootDirectory(opts.read);
+
+    if opts.write is not None:
+        runner.setOutputFilename(opts.write);
+
+    if opts.process_json is not None:
+        runner.setInputJSONFileName(opts.process_json);
+
+    if opts.enable_multiprocessing:
+        runner.enableMultiprocessing();
+
+    runner.process();
