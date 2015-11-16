@@ -201,8 +201,8 @@ class Network:
         self.recognitionTotal = len(self.testingData);
 
         if not self.debug:
-            print("Recognition Progress:");
-            pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=self.recognitionTotal).start();
+            #print("Recognition Progress:");
+            #pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=self.recognitionTotal).start();
 
             for p in self.testingData:
                 binList = self.update(p[1:]);
@@ -216,16 +216,16 @@ class Network:
                 # print("number: " + str(idx) + ' -> ' + self.fromBinaryToCharacter(binStr));
                 self.outlist.append(self.fromBinaryToCharacter(binStr));
                 self.recognitionProgress += 1;
-                pbar.update(self.recognitionProgress);
+                #pbar.update(self.recognitionProgress);
 
-            pbar.finish();
+            #pbar.finish();
         else:
             numCorrect = 0.0;
             errorList = [];
 
             # recognition process
             print("Recognition (Debug) Progress:");
-            pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=self.recognitionTotal).start();
+            #pbar = ProgressBar(widgets=[Percentage(), Bar(), SimpleProgress()], maxval=self.recognitionTotal).start();
             for p in self.testingData:
                 binList = self.update(p[1:]);
                 binStr = "";
@@ -242,8 +242,8 @@ class Network:
                 else:
                     errorList.append((str(p[0]), self.fromBinaryToCharacter(binStr)));
                 self.recognitionProgress += 1;
-                pbar.update(self.recognitionProgress);
-            pbar.finish();
+             #   pbar.update(self.recognitionProgress);
+            #pbar.finish();
 
             # print all errors made
             errorList.sort();
