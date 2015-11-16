@@ -256,7 +256,7 @@ class Network:
 
 
         end = time.time();
-        print("\nTime took to recognize: " + str(end - start) + " seconds");
+        #print("\nTime took to recognize: " + str(end - start) + " seconds");
 
     # write outlist down as file
     def exportRecognitionText(self):
