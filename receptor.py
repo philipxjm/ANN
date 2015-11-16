@@ -21,7 +21,7 @@ class Receptor:
     def __init__(self):
         self.inputArr = None;
         self.character = "x";
-        self.minimum_group_size = 4;
+        self.minimum_group_size = 12;
 
         self.output = [];
         # output is a list of all receptor values
@@ -287,7 +287,37 @@ class ReceptorRunner:
         if self.rootDirectory is None:
             print "Root directory is not set, aborting."
             return;
-        if self.inputJSONFileName is None:
+        if self.inputJSONFileName is None and self.multiprocessing:
+            print "Input JSON is not set, reading flat image folder."
+            print("Starting Multiprocessing...");
+            start = time.time();
+            imgs = [];
+            try:
+                threadcount = cpu_count();
+            except NotImplementedError:
+                threadcount = 2;
+                print('Error getting core counts, setting threadcount to 2');
+            threads = Pool(threadcount);
+
+            with open("encodedcsv/" + self.outputFileName, 'wb') as paramfile:
+                csv_writer = csv.writer(paramfile, delimiter=' ');
+                for subdir, dirs, files in os.walk(self.rootDirectory + '/'):
+                    for name in files:
+                        imgs.append([name, self.rootDirectory + '/', "x"]);
+
+            print("Distributing tasks across " + str(threadcount) + " cores...");
+            final = threads.map(partial(mp), imgs);
+
+            print("Writing results to output file...")
+            with open("encodedcsv/" + self.outputFileName, 'wb') as paramfile:
+                csv_writer = csv.writer(paramfile, delimiter=' ');
+                for row in final:
+                    csv_writer.writerow([x for x in row]);
+
+            end = time.time();
+            print("\nSaved data as: " + self.outputFileName);
+            print("Time Elapsed: " + str(end - start) + " seconds");
+        elif self.inputJSONFileName is None:
             print "Input JSON is not set, reading flat image folder."
             num = 0;
             start = time.time();

@@ -77,31 +77,44 @@ class Network:
         self.recognitionTotal = 0; # total numbers of letters needed to be recognized
         self.outlist = []; # list of output characters from recognition;
 
+    # return outlist
+    def getOutlist(self):
+        return self.outlist;
+
+    # set learning constant, default 0.00001
     def setLearning(self, N):
         self.N = N;
 
+    # set momentum constant, default 0.001
     def setMomentum(self, M):
         self.M = M;
 
+    # set iteration, default 1
     def setIteration(self, I):
         self.I = I;
 
+    # set weights to wi, wo matrice
     def setWeights(self, wi, wo):
         self.wi = wi;
         self.wo = wo;
 
+    # set output weight file URL
     def setOutputWeightFileName(self, filename):
         self.outputWeightFilename = filename;
 
+    # set output recognized file URL
     def setOutputRecognitionFileName(self, filename):
         self.outputRecognitionFilename = filename;
 
+    # enable debug recognition rather than output recognition
     def enableDebugRecognition(self):
         self.debug = True;
 
+    # set the training data to a matrix
     def setTrainingData(self, data):
         self.trainingData = data;
 
+    # set the testing data to a matrix
     def setTestingData(self, data):
         self.testingData = data;
 
@@ -227,14 +240,15 @@ class Network:
                 if(str(p[0]) == self.fromBinaryToCharacter(binStr)):
                     numCorrect += 1;
                 else:
-                    errorList.append(str(p[0]) + ' -> ' + self.fromBinaryToCharacter(binStr));
+                    errorList.append((str(p[0]), self.fromBinaryToCharacter(binStr)));
                 self.recognitionProgress += 1;
                 pbar.update(self.recognitionProgress);
             pbar.finish();
 
             # print all errors made
+            errorList.sort();
             for l in errorList:
-                print("Bad Recognition: " + str(l));
+                print("Bad Recognition: " + str(l[0]) + " -> " + str(l[1]));
 
             # print results
             print("\n");
@@ -317,8 +331,8 @@ class Network:
                 # feedforward inputs
                 self.update(inputs);
 
-                #generate new Learning Constant
-                self.setLearning(self.logisticFunction(100.0*(float(self.trainingProgress)/float(self.trainingTotal))));
+                # generate new Learning Constant
+                # self.setLearning(self.logisticFunction(100.0*(float(self.trainingProgress)/float(self.trainingTotal))));
 
                 # backpropagate errors
                 error = error + self.backPropagate(targets, self.N, self.M);
